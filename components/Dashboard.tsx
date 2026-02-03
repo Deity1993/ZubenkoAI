@@ -3,7 +3,6 @@ import { Mic, MessageSquare, Power, Settings, LogOut, Activity, Command, Waves, 
 import { useConversation } from '@elevenlabs/react';
 import { ApiKeys, InteractionMode, ChatMessage } from '../types';
 import WaveformVisualizer from './WaveformVisualizer';
-import { n8nService } from '../services/n8nService';
 import { elevenLabsService } from '../services/elevenLabsService';
 
 interface DashboardProps {
@@ -72,17 +71,9 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     }
   };
 
-  const handleVoiceMessage = useCallback(async (transcript: string) => {
+  const handleVoiceMessage = useCallback((transcript: string) => {
     if (!transcript?.trim()) return;
-    const currentKeys = keysRef.current;
     addMessage('user', transcript);
-    try {
-      const response = await n8nService.triggerWebhook(transcript, currentKeys);
-      addMessage('assistant', response);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Verbindung zum n8n-Workflow fehlgeschlagen.';
-      addMessage('system', msg);
-    }
   }, []);
 
   const {
@@ -135,17 +126,18 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
 
   ensureTextSessionRef.current = useCallback(async () => {
     if (conversationStatusRef.current === 'connected') return;
-    if (!keys.elevenLabsAgentId?.trim()) {
-      throw new Error('Bitte konfiguriere die ElevenLabs Agent ID in den Admin-Einstellungen.');
+    const chatAgentId = keys.elevenLabsChatAgentId?.trim();
+    if (!chatAgentId) {
+      throw new Error('Bitte konfiguriere die ElevenLabs Chat-Agent-ID in den Admin-Einstellungen.');
     }
     setIsConnecting(true);
     setVoiceError(null);
     try {
       if (keys.elevenLabsKey?.trim()) {
-        const signedUrl = await elevenLabsService.getSignedUrl(keys.elevenLabsAgentId, keys.elevenLabsKey);
+        const signedUrl = await elevenLabsService.getSignedUrl(chatAgentId, keys.elevenLabsKey);
         await startSession({ signedUrl, connectionType: 'websocket' });
       } else {
-        await startSession({ agentId: keys.elevenLabsAgentId, connectionType: 'webrtc' });
+        await startSession({ agentId: chatAgentId, connectionType: 'webrtc' });
       }
       const maxWait = 10000;
       const start = Date.now();
@@ -158,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     } finally {
       setIsConnecting(false);
     }
-  }, [keys.elevenLabsAgentId, keys.elevenLabsKey, startSession]);
+  }, [keys.elevenLabsChatAgentId, keys.elevenLabsKey, startSession]);
 
   const toggleVoice = async () => {
     if (isVoiceActive) {
@@ -305,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
                   {isConnecting 
                     ? 'Verbindung zu ElevenLabs wird hergestellt…'
                     : isVoiceActive 
-                      ? 'Deine Sprache wird transkribiert und an n8n gesendet.' 
+                      ? 'Deine Sprache wird transkribiert und der ElevenLabs-Agent antwortet.' 
                       : 'Mikrofon antippen für Sprachsteuerung.'}
                 </p>
                 {voiceError && (

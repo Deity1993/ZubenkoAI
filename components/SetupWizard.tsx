@@ -12,8 +12,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, initialKeys }) =>
   const [keys, setKeys] = useState<ApiKeys>(initialKeys || {
     elevenLabsKey: '',
     elevenLabsAgentId: '',
-    n8nWebhookUrl: '',
-    n8nApiKey: '',
+    elevenLabsChatAgentId: '',
   });
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -78,53 +77,30 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, initialKeys }) =>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-500">Agent ID</label>
+                <label className="text-xs text-slate-500">Agent-ID (Sprache)</label>
                 <div className="relative">
                   <Zap className="absolute left-3 top-2.5 text-slate-500" size={14} />
                   <input 
                     type="text"
                     value={keys.elevenLabsAgentId}
                     onChange={(e) => updateKey('elevenLabsAgentId', e.target.value)}
-                    placeholder="Agent Public ID"
+                    placeholder="Für Sprachmodus"
                     autoComplete="off"
                     className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
                   />
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* n8n Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
-              <Link size={16} />
-              <h3 className="font-medium text-xs uppercase tracking-wider">n8n</h3>
-            </div>
-            
-            <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-500">Webhook URL</label>
+                <label className="text-xs text-slate-500">Agent-ID (Chat)</label>
                 <div className="relative">
-                  <Link className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                  <Zap className="absolute left-3 top-2.5 text-slate-500" size={14} />
                   <input 
-                    type="url"
-                    value={keys.n8nWebhookUrl}
-                    onChange={(e) => updateKey('n8nWebhookUrl', e.target.value)}
+                    type="text"
+                    value={keys.elevenLabsChatAgentId}
+                    onChange={(e) => updateKey('elevenLabsChatAgentId', e.target.value)}
+                    placeholder="Für Text/Chat-Modus"
+                    autoComplete="off"
                     className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
-                    placeholder="https://n8n.your-instance.com/..."
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-500">API-Schlüssel (Optional)</label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                  <input 
-                    type="password"
-                    value={keys.n8nApiKey}
-                    onChange={(e) => updateKey('n8nApiKey', e.target.value)}
-                    className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
-                    placeholder="n8n_api_..."
                   />
                 </div>
               </div>
@@ -149,7 +125,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, initialKeys }) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-500 text-xs">
               <CheckCircle2 size={14} className="text-emerald-500/80" />
-              4 Kernparameter
+              3 Kernparameter
             </div>
             <button 
               onClick={handleSave}

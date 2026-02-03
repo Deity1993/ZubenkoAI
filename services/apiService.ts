@@ -70,7 +70,7 @@ export const apiService = {
     throw new Error('Sitzung abgelaufen');
   }
   if (!res.ok) throw new Error('Konfiguration konnte nicht geladen werden');
-  if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' };
+  if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' };
   try {
     return JSON.parse(text);
   } catch {
@@ -145,8 +145,8 @@ export const apiService = {
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
     if (!res.ok) throw new Error('Konfiguration konnte nicht geladen werden');
-    if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' };
-    try { return JSON.parse(text); } catch { return { elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' }; }
+    if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' };
+    try { return JSON.parse(text); } catch { return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' }; }
   },
   async setUserConfig(userId: number, config: Partial<ApiKeys>): Promise<void> {
     const token = getToken();

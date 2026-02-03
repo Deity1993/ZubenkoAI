@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { apiService, AdminUser } from '../services/apiService';
 import { elevenLabsService } from '../services/elevenLabsService';
-import { n8nService } from '../services/n8nService';
 
 interface AdminPageProps {
   username?: string;
@@ -36,9 +35,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
   const [editPassword, setEditPassword] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [configUser, setConfigUser] = useState<AdminUser | null>(null);
-  const [config, setConfig] = useState({ elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' });
+  const [config, setConfig] = useState({ elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' });
   const [configLoading, setConfigLoading] = useState(false);
-  const [testResult, setTestResult] = useState<{ elevenLabs?: { ok: boolean; message: string }; n8n?: { ok: boolean; message: string } } | null>(null);
+  const [testResult, setTestResult] = useState<{ elevenLabs?: { ok: boolean; message: string }; elevenLabsChat?: { ok: boolean; message: string } } | null>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -118,12 +117,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
       const r = await elevenLabsService.testConnection(config.elevenLabsAgentId, config.elevenLabsKey);
       results.elevenLabs = r;
     }
-    if (config.n8nWebhookUrl?.trim()) {
-      const r = await n8nService.testConnection(config.n8nWebhookUrl, config.n8nApiKey);
-      results.n8n = r;
+    if (config.elevenLabsChatAgentId?.trim()) {
+      const r = await elevenLabsService.testConnection(config.elevenLabsChatAgentId, config.elevenLabsKey);
+      results.elevenLabsChat = r;
     }
     if (Object.keys(results).length === 0) {
-      setTestResult({ elevenLabs: { ok: false, message: 'Agent-ID oder Webhook-URL eingeben, dann Prüfen.' } });
+      setTestResult({ elevenLabs: { ok: false, message: 'Mindestens eine Agent-ID eingeben, dann Prüfen.' } });
     } else {
       setTestResult(results);
     }
@@ -344,29 +343,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-slate-500">ElevenLabs Agent-ID</label>
+                      <label className="text-xs text-slate-500">ElevenLabs Agent-ID (Sprache)</label>
                       <input
                         type="text"
                         value={config.elevenLabsAgentId}
                         onChange={(e) => { setConfig({ ...config, elevenLabsAgentId: e.target.value }); setTestResult(null); }}
+                        placeholder="Für Sprachmodus"
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-slate-500">n8n Webhook-URL</label>
+                      <label className="text-xs text-slate-500">ElevenLabs Agent-ID (Chat)</label>
                       <input
-                        type="url"
-                        value={config.n8nWebhookUrl}
-                        onChange={(e) => { setConfig({ ...config, n8nWebhookUrl: e.target.value }); setTestResult(null); }}
-                        className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500">n8n API-Key (optional)</label>
-                      <input
-                        type="password"
-                        value={config.n8nApiKey}
-                        onChange={(e) => { setConfig({ ...config, n8nApiKey: e.target.value }); setTestResult(null); }}
+                        type="text"
+                        value={config.elevenLabsChatAgentId}
+                        onChange={(e) => { setConfig({ ...config, elevenLabsChatAgentId: e.target.value }); setTestResult(null); }}
+                        placeholder="Für Text/Chat-Modus"
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
@@ -375,13 +367,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                         {testResult.elevenLabs && (
                           <div className={`flex items-start gap-2 text-sm ${testResult.elevenLabs.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
                             {testResult.elevenLabs.ok ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
-                            <span>{testResult.elevenLabs.message}</span>
+                            <span>Sprache: {testResult.elevenLabs.message}</span>
                           </div>
                         )}
-                        {testResult.n8n && (
-                          <div className={`flex items-start gap-2 text-sm ${testResult.n8n.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {testResult.n8n.ok ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
-                            <span>{testResult.n8n.message}</span>
+                        {testResult.elevenLabsChat && (
+                          <div className={`flex items-start gap-2 text-sm ${testResult.elevenLabsChat.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {testResult.elevenLabsChat.ok ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
+                            <span>Chat: {testResult.elevenLabsChat.message}</span>
                           </div>
                         )}
                       </div>

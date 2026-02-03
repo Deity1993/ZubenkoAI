@@ -2,8 +2,7 @@
 export interface ApiKeys {
   elevenLabsKey: string;
   elevenLabsAgentId: string;
-  n8nWebhookUrl: string;
-  n8nApiKey: string;
+  elevenLabsChatAgentId: string;
 }
 
 export interface ChatMessage {

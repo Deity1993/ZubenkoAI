@@ -27,6 +27,30 @@ export async function initDb() {
       db.run('ALTER TABLE users ADD COLUMN is_locked INTEGER DEFAULT 0');
       saveDb();
     } catch (_) { /* Spalte existiert bereits */ }
+    // Migration: user_config ohne n8n, mit eleven_labs_chat_agent_id
+    try {
+      const tableInfo = db.exec("PRAGMA table_info(user_config)");
+      const rows = tableInfo?.[0]?.values ?? [];
+      const cols = rows.map((r) => r[1]);
+      if (cols.includes('n8n_webhook_url') || !cols.includes('eleven_labs_chat_agent_id')) {
+        db.run(`CREATE TABLE user_config_new (
+          user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          eleven_labs_key TEXT DEFAULT '',
+          eleven_labs_agent_id TEXT DEFAULT '',
+          eleven_labs_chat_agent_id TEXT DEFAULT '',
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run(`INSERT INTO user_config_new (user_id, eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id, updated_at)
+          SELECT user_id, eleven_labs_key, eleven_labs_agent_id, '', updated_at FROM user_config`);
+        db.run('DROP TABLE user_config');
+        db.run('ALTER TABLE user_config_new RENAME TO user_config');
+        saveDb();
+      }
+    } catch (_) { /* Migration fehlgeschlagen oder nicht nötig */ }
+    try {
+      db.run('ALTER TABLE user_config ADD COLUMN eleven_labs_chat_agent_id TEXT DEFAULT ""');
+      saveDb();
+    } catch (_) { /* Spalte existiert bereits */ }
     // Ersten Benutzer (admin) zum Admin machen falls noch keiner Admin ist
     const adminCheck = db.prepare('SELECT COUNT(*) as c FROM users WHERE is_admin = 1');
     adminCheck.step();
@@ -53,8 +77,7 @@ export async function initDb() {
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         eleven_labs_key TEXT DEFAULT '',
         eleven_labs_agent_id TEXT DEFAULT '',
-        n8n_webhook_url TEXT DEFAULT '',
-        n8n_api_key TEXT DEFAULT '',
+        eleven_labs_chat_agent_id TEXT DEFAULT '',
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);

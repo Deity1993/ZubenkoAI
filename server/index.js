@@ -95,7 +95,7 @@ app.get('/api/me', authMiddleware, (req, res) => {
 app.get('/api/config', authMiddleware, (req, res) => {
   const db = getDb();
   const stmt = db.prepare(
-    'SELECT eleven_labs_key, eleven_labs_agent_id, n8n_webhook_url, n8n_api_key FROM user_config WHERE user_id = ?'
+    'SELECT eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id FROM user_config WHERE user_id = ?'
   );
   stmt.bind([req.userId]);
   let result = null;
@@ -107,15 +107,13 @@ app.get('/api/config', authMiddleware, (req, res) => {
     return res.json({
       elevenLabsKey: '',
       elevenLabsAgentId: '',
-      n8nWebhookUrl: '',
-      n8nApiKey: '',
+      elevenLabsChatAgentId: '',
     });
   }
   res.json({
     elevenLabsKey: result.eleven_labs_key || '',
     elevenLabsAgentId: result.eleven_labs_agent_id || '',
-    n8nWebhookUrl: result.n8n_webhook_url || '',
-    n8nApiKey: result.n8n_api_key || '',
+    elevenLabsChatAgentId: result.eleven_labs_chat_agent_id || '',
   });
 });
 
@@ -204,26 +202,25 @@ app.get('/api/admin/users/:id/config', authMiddleware, adminMiddleware, (req, re
   if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
   const db = getDb();
   const stmt = db.prepare(
-    'SELECT eleven_labs_key, eleven_labs_agent_id, n8n_webhook_url, n8n_api_key FROM user_config WHERE user_id = ?'
+    'SELECT eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id FROM user_config WHERE user_id = ?'
   );
   stmt.bind([id]);
   const row = stmt.step() ? stmt.getAsObject() : null;
   stmt.free();
   if (!row) {
-    return res.json({ elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' });
+    return res.json({ elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' });
   }
   res.json({
     elevenLabsKey: row.eleven_labs_key || '',
     elevenLabsAgentId: row.eleven_labs_agent_id || '',
-    n8nWebhookUrl: row.n8n_webhook_url || '',
-    n8nApiKey: row.n8n_api_key || '',
+    elevenLabsChatAgentId: row.eleven_labs_chat_agent_id || '',
   });
 });
 
 app.put('/api/admin/users/:id/config', authMiddleware, adminMiddleware, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
-  const { elevenLabsKey, elevenLabsAgentId, n8nWebhookUrl, n8nApiKey } = req.body;
+  const { elevenLabsKey, elevenLabsAgentId, elevenLabsChatAgentId } = req.body;
   const db = getDb();
   const check = db.prepare('SELECT user_id FROM user_config WHERE user_id = ?');
   check.bind([id]);
@@ -231,18 +228,17 @@ app.put('/api/admin/users/:id/config', authMiddleware, adminMiddleware, async (r
   check.free();
   const ek = typeof elevenLabsKey === 'string' ? elevenLabsKey : '';
   const eid = typeof elevenLabsAgentId === 'string' ? elevenLabsAgentId : '';
-  const nw = typeof n8nWebhookUrl === 'string' ? n8nWebhookUrl : '';
-  const nak = typeof n8nApiKey === 'string' ? n8nApiKey : '';
+  const echat = typeof elevenLabsChatAgentId === 'string' ? elevenLabsChatAgentId : '';
   if (exists) {
     const upd = db.prepare(`
-      UPDATE user_config SET eleven_labs_key=?, eleven_labs_agent_id=?, n8n_webhook_url=?, n8n_api_key=? WHERE user_id=?
+      UPDATE user_config SET eleven_labs_key=?, eleven_labs_agent_id=?, eleven_labs_chat_agent_id=? WHERE user_id=?
     `);
-    upd.run([ek, eid, nw, nak, id]);
+    upd.run([ek, eid, echat, id]);
     upd.free();
   } else {
     db.run(
-      'INSERT INTO user_config (user_id, eleven_labs_key, eleven_labs_agent_id, n8n_webhook_url, n8n_api_key) VALUES (?, ?, ?, ?, ?)',
-      [id, ek, eid, nw, nak]
+      'INSERT INTO user_config (user_id, eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id) VALUES (?, ?, ?, ?)',
+      [id, ek, eid, echat]
     );
   }
   save();

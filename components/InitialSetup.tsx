@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Settings, Zap, Key, Link, Save, ShieldCheck } from 'lucide-react';
+import { Lock, Settings, Zap, Key, Save, ShieldCheck } from 'lucide-react';
 import { ApiKeys } from '../types';
 
 interface InitialSetupProps {
@@ -13,8 +13,7 @@ const InitialSetup: React.FC<InitialSetupProps> = ({ onComplete, legacyKeys }) =
   const [keys, setKeys] = useState<ApiKeys>(legacyKeys || {
     elevenLabsKey: '',
     elevenLabsAgentId: '',
-    n8nWebhookUrl: '',
-    n8nApiKey: '',
+    elevenLabsChatAgentId: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -118,7 +117,7 @@ const InitialSetup: React.FC<InitialSetupProps> = ({ onComplete, legacyKeys }) =
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-500">Agent ID</label>
+                    <label className="text-xs text-slate-500">Agent-ID (Sprache)</label>
                     <div className="relative">
                       <Zap className="absolute left-3 top-2.5 text-slate-500" size={14} />
                       <input
@@ -126,41 +125,20 @@ const InitialSetup: React.FC<InitialSetupProps> = ({ onComplete, legacyKeys }) =
                         value={keys.elevenLabsAgentId}
                         onChange={(e) => updateKey('elevenLabsAgentId', e.target.value)}
                         className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
-                        placeholder="Agent Public ID"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-400 mb-1">
-                  <Link size={16} />
-                  <h3 className="font-medium text-xs uppercase tracking-wider">n8n</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-slate-500">Webhook URL</label>
-                    <div className="relative">
-                      <Link className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                      <input
-                        type="url"
-                        value={keys.n8nWebhookUrl}
-                        onChange={(e) => updateKey('n8nWebhookUrl', e.target.value)}
-                        className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
-                        placeholder="https://n8n.your-instance.com/..."
+                        placeholder="Für Sprachmodus"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-500">API-Schlüssel (Optional)</label>
+                    <label className="text-xs text-slate-500">Agent-ID (Chat)</label>
                     <div className="relative">
-                      <Key className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                      <Zap className="absolute left-3 top-2.5 text-slate-500" size={14} />
                       <input
-                        type="password"
-                        value={keys.n8nApiKey}
-                        onChange={(e) => updateKey('n8nApiKey', e.target.value)}
+                        type="text"
+                        value={keys.elevenLabsChatAgentId}
+                        onChange={(e) => updateKey('elevenLabsChatAgentId', e.target.value)}
                         className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500/50"
-                        placeholder="n8n_api_..."
+                        placeholder="Für Text/Chat-Modus"
                       />
                     </div>
                   </div>
