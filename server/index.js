@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
-import { initDb, getDb } from './db.js';
+import { initDb, getDb, save } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'zubenkoai-secret-change-in-production';
@@ -151,7 +151,6 @@ app.post('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
     if (row) {
       db.run('INSERT OR IGNORE INTO user_config (user_id) VALUES (?)', [row.id]);
     }
-    const { save } = await import('./db.js');
     save();
     res.status(201).json({ id: row?.id, username: username.trim() });
   } catch (e) {
@@ -190,7 +189,6 @@ app.patch('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) =>
   stmt.run(params);
   const changed = db.getRowsModified();
   stmt.free();
-  const { save } = await import('./db.js');
   save();
   if (changed === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
   res.json({ ok: true });
@@ -226,7 +224,6 @@ app.put('/api/admin/users/:id/config', authMiddleware, adminMiddleware, async (r
   check.bind([id]);
   const exists = check.step();
   check.free();
-  const { save } = await import('./db.js');
   const ek = typeof elevenLabsKey === 'string' ? elevenLabsKey : '';
   const eid = typeof elevenLabsAgentId === 'string' ? elevenLabsAgentId : '';
   const nw = typeof n8nWebhookUrl === 'string' ? n8nWebhookUrl : '';
