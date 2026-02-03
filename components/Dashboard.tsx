@@ -8,12 +8,13 @@ import { elevenLabsService } from '../services/elevenLabsService';
 
 interface DashboardProps {
   keys: ApiKeys;
+  username?: string;
   onLogout: () => void;
   onOpenSettings?: () => void;
   onOpenAdmin?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ keys, onLogout, onOpenSettings, onOpenAdmin }) => {
+const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenSettings, onOpenAdmin }) => {
   const [mode, setMode] = useState<InteractionMode>(InteractionMode.VOICE);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -191,9 +192,16 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, onLogout, onOpenSettings, o
             <span className="text-sm font-medium text-slate-400">Orchestrator aktiv</span>
           </div>
           
-          <div className="px-3 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[10px] font-mono text-slate-500 flex items-center">
-            <Activity size={12} className="mr-2 text-slate-500" />
-            SYSTEM
+          <div className="flex items-center gap-3">
+            {username && (
+              <span className="text-sm text-slate-500">
+                Angemeldet als <span className="text-slate-300 font-medium">{username}</span>
+              </span>
+            )}
+            <div className="px-3 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[10px] font-mono text-slate-500 flex items-center">
+              <Activity size={12} className="mr-2 text-slate-500" />
+              SYSTEM
+            </div>
           </div>
         </header>
 

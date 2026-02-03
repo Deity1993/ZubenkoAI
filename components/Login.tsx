@@ -3,7 +3,7 @@ import { Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { apiService } from '../services/apiService';
 
 interface LoginProps {
-  onLogin: (keys: import('../types').ApiKeys) => void;
+  onLogin: (keys: import('../types').ApiKeys, username?: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -18,9 +18,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      await apiService.login(username, password);
+      const { username: loggedInUser } = await apiService.login(username, password);
       const keys = await apiService.getConfig();
-      onLogin(keys);
+      onLogin(keys, loggedInUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler bei der Anmeldung.');
     } finally {

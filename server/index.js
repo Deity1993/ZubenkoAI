@@ -76,7 +76,7 @@ app.post('/api/auth/login', (req, res) => {
     }
     const isAdmin = !!result.is_admin;
     const token = jwt.sign({ userId: result.id, isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ token, isAdmin });
+    return res.json({ token, isAdmin, username: username });
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Serverfehler bei der Anmeldung' });
@@ -84,7 +84,12 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/me', authMiddleware, (req, res) => {
-  res.json({ isAdmin: !!req.isAdmin });
+  const db = getDb();
+  const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
+  stmt.bind([req.userId]);
+  const row = stmt.step() ? stmt.getAsObject() : null;
+  stmt.free();
+  res.json({ isAdmin: !!req.isAdmin, username: row?.username || '' });
 });
 
 app.get('/api/config', authMiddleware, (req, res) => {

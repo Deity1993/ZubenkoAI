@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ApiKeys, AppState } from './types';
-import { apiService, isAdminUser } from './services/apiService';
+import { apiService, isAdminUser, getUsername } from './services/apiService';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AdminPage from './components/AdminPage';
@@ -9,6 +9,7 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.AUTH);
   const [keys, setKeys] = useState<ApiKeys | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -19,8 +20,10 @@ const App: React.FC = () => {
         try {
           const me = await apiService.getMe();
           setIsAdmin(!!me.isAdmin);
+          setUsername(me.username || getUsername());
         } catch {
           setIsAdmin(isAdminUser());
+          setUsername(getUsername());
         }
       } catch {
         setAppState(AppState.AUTH);
@@ -29,22 +32,25 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  const handleLogin = (config: ApiKeys) => {
+  const handleLogin = (config: ApiKeys, loggedInUsername?: string) => {
     setKeys(config);
     setAppState(AppState.DASHBOARD);
     setIsAdmin(isAdminUser());
+    setUsername(loggedInUsername || getUsername());
   };
 
   const handleLogout = () => {
     apiService.clearToken();
     setKeys(null);
     setIsAdmin(false);
+    setUsername('');
     setAppState(AppState.AUTH);
   };
 
   if (appState === AppState.ADMIN) {
     return (
       <AdminPage
+        username={username}
         onBack={() => setAppState(AppState.DASHBOARD)}
         onLogout={handleLogout}
       />
@@ -55,6 +61,7 @@ const App: React.FC = () => {
     return (
       <Dashboard
         keys={keys}
+        username={username}
         onLogout={handleLogout}
         onOpenSettings={undefined}
         onOpenAdmin={isAdmin ? () => setAppState(AppState.ADMIN) : undefined}
@@ -62,7 +69,7 @@ const App: React.FC = () => {
     );
   }
 
-  return <Login onLogin={handleLogin} />;
+  return <Login onLogin={(keys, u) => handleLogin(keys, u)} />;
 };
 
 export default App;

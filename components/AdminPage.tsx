@@ -15,11 +15,12 @@ import {
 import { apiService, AdminUser } from '../services/apiService';
 
 interface AdminPageProps {
+  username?: string;
   onBack: () => void;
   onLogout: () => void;
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ onBack, onLogout }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -134,12 +135,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack, onLogout }) => {
               <h1 className="text-xl font-semibold">Benutzerverwaltung</h1>
             </div>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            Abmelden
-          </button>
+          <div className="flex items-center gap-3">
+            {username && (
+              <span className="text-sm text-slate-500">
+                Angemeldet als <span className="text-slate-300 font-medium">{username}</span>
+              </span>
+            )}
+            <button
+              onClick={onLogout}
+              className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              Abmelden
+            </button>
+          </div>
         </div>
 
         {error && (

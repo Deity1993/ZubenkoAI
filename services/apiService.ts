@@ -14,6 +14,14 @@ function setAdmin(isAdmin: boolean) {
   sessionStorage.setItem('zubenkoai_admin', isAdmin ? '1' : '0');
 }
 
+function setUsername(username: string) {
+  sessionStorage.setItem('zubenkoai_username', username || '');
+}
+
+export function getUsername(): string {
+  return sessionStorage.getItem('zubenkoai_username') || '';
+}
+
 export function isAdminUser(): boolean {
   return sessionStorage.getItem('zubenkoai_admin') === '1';
 }
@@ -22,6 +30,7 @@ export const apiService = {
   clearToken() {
     sessionStorage.removeItem('zubenkoai_token');
     sessionStorage.removeItem('zubenkoai_admin');
+    sessionStorage.removeItem('zubenkoai_username');
   },
   async login(username: string, password: string): Promise<{ isAdmin: boolean }> {
   const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -30,7 +39,7 @@ export const apiService = {
     body: JSON.stringify({ username, password }),
   });
   const text = await res.text();
-  let data: { token?: string; isAdmin?: boolean; error?: string } = {};
+  let data: { token?: string; isAdmin?: boolean; username?: string; error?: string } = {};
   if (text) {
     try {
       data = JSON.parse(text);
@@ -46,7 +55,8 @@ export const apiService = {
   }
   setToken(data.token);
   setAdmin(!!data.isAdmin);
-  return { isAdmin: !!data.isAdmin };
+  setUsername(data.username || '');
+  return { isAdmin: !!data.isAdmin, username: data.username || '' };
   },
   async getConfig(): Promise<ApiKeys> {
   const token = getToken();
@@ -67,7 +77,7 @@ export const apiService = {
     throw new Error('Konfiguration konnte nicht geladen werden.');
   }
   },
-  async getMe(): Promise<{ isAdmin: boolean }> {
+  async getMe(): Promise<{ isAdmin: boolean; username: string }> {
     const token = getToken();
     if (!token) throw new Error('Nicht angemeldet');
     const res = await fetch(`${API_BASE}/api/me`, {
@@ -77,6 +87,7 @@ export const apiService = {
     if (!res.ok) throw new Error('Fehler');
     const data = await res.json();
     setAdmin(!!data.isAdmin);
+    setUsername(data.username || '');
     return data;
   },
   async getAdminUsers(): Promise<AdminUser[]> {
