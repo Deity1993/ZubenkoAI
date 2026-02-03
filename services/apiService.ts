@@ -83,12 +83,14 @@ export const apiService = {
     const res = await fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    const text = await res.text();
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (!res.ok) throw new Error('Fehler');
-    const data = await res.json();
+    let data: { isAdmin?: boolean; username?: string } = {};
+    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
     setAdmin(!!data.isAdmin);
     setUsername(data.username || '');
-    return data;
+    return { isAdmin: !!data.isAdmin, username: data.username || '' };
   },
   async getAdminUsers(): Promise<AdminUser[]> {
     const token = getToken();
@@ -96,10 +98,11 @@ export const apiService = {
     const res = await fetch(`${API_BASE}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    const text = await res.text();
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
     if (!res.ok) throw new Error('Benutzer konnten nicht geladen werden');
-    return res.json();
+    try { return text ? JSON.parse(text) : []; } catch { return []; }
   },
   async createUser(username: string, password: string): Promise<{ id: number; username: string }> {
     const token = getToken();
@@ -109,7 +112,9 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ username, password }),
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data: { error?: string; id?: number; username?: string } = {};
+    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
     if (!res.ok) throw new Error(data.error || 'Benutzer konnte nicht erstellt werden');
@@ -123,7 +128,9 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     });
-    const json = await res.json();
+    const text = await res.text();
+    let json: { error?: string } = {};
+    if (text) { try { json = JSON.parse(text); } catch { /* ignore */ } }
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
     if (!res.ok) throw new Error(json.error || 'Änderung fehlgeschlagen');
@@ -134,10 +141,12 @@ export const apiService = {
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}/config`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    const text = await res.text();
     if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
     if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
     if (!res.ok) throw new Error('Konfiguration konnte nicht geladen werden');
-    return res.json();
+    if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' };
+    try { return JSON.parse(text); } catch { return { elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' }; }
   },
   async setUserConfig(userId: number, config: Partial<ApiKeys>): Promise<void> {
     const token = getToken();

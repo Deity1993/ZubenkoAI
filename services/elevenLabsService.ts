@@ -24,7 +24,9 @@ export const elevenLabsService = {
       throw new Error(`ElevenLabs Signed URL fehlgeschlagen: ${response.status} ${errorText}`);
     }
 
-    const body = await response.json();
+    const text = await response.text();
+    let body: { signed_url?: string } = {};
+    if (text) { try { body = JSON.parse(text); } catch { /* ignore */ } }
     if (!body.signed_url) {
       throw new Error('Keine signed_url in der ElevenLabs-Antwort erhalten.');
     }

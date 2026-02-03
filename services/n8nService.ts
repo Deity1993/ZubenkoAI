@@ -26,8 +26,14 @@ export const n8nService = {
         throw new Error(`n8n ${response.status}: ${response.statusText}${body ? ` – ${body.slice(0, 100)}` : ''}`);
       }
 
-      const data = await response.json();
-      return data.output || data.response || "Workflow erfolgreich ausgelöst.";
+      const text = await response.text();
+      if (!text?.trim()) return "Workflow erfolgreich ausgelöst.";
+      try {
+        const data = JSON.parse(text);
+        return data.output ?? data.response ?? "Workflow erfolgreich ausgelöst.";
+      } catch {
+        return text;
+      }
     } catch (error) {
       console.error("Failed to trigger n8n workflow:", error);
       throw error;
