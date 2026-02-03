@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MessageSquare, Power, Settings, LogOut, Activity, Command, Waves } from 'lucide-react';
+import { Mic, MessageSquare, Power, Settings, LogOut, Activity, Command, Waves, Users } from 'lucide-react';
 import { useConversation } from '@elevenlabs/react';
 import { ApiKeys, InteractionMode, ChatMessage } from '../types';
 import WaveformVisualizer from './WaveformVisualizer';
@@ -10,9 +10,10 @@ interface DashboardProps {
   keys: ApiKeys;
   onLogout: () => void;
   onOpenSettings?: () => void;
+  onOpenAdmin?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ keys, onLogout, onOpenSettings }) => {
+const Dashboard: React.FC<DashboardProps> = ({ keys, onLogout, onOpenSettings, onOpenAdmin }) => {
   const [mode, setMode] = useState<InteractionMode>(InteractionMode.VOICE);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -164,6 +165,11 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, onLogout, onOpenSettings })
         </div>
 
         <div className="flex flex-col items-center space-y-1">
+          {onOpenAdmin && (
+            <button onClick={onOpenAdmin} className="p-2.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors" title="Benutzerverwaltung">
+              <Users size={22} />
+            </button>
+          )}
           {onOpenSettings && (
             <button onClick={onOpenSettings} className="p-2.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
               <Settings size={22} />

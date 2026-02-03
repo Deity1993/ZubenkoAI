@@ -16,7 +16,8 @@ export enum AppState {
   AUTH = 'AUTH',
   INITIAL_SETUP = 'INITIAL_SETUP',
   SETUP = 'SETUP',
-  DASHBOARD = 'DASHBOARD'
+  DASHBOARD = 'DASHBOARD',
+  ADMIN = 'ADMIN',
 }
 
 export enum InteractionMode {

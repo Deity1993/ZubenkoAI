@@ -109,30 +109,14 @@ cd ~/n8n-compose
 git clone https://github.com/DEIN-USER/ai-voice-to-n8n-orchestrator.git zubenkoai
 ```
 
-**2. In `compose.yaml` den Service ergänzen** (unter `n8n:` einfügen):
+**2. In `compose.yaml` den Service ergänzen:**
 
-```yaml
-  zubenkoai:
-    build: ./zubenkoai
-    restart: unless-stopped
-    environment:
-      - JWT_SECRET=${JWT_SECRET:-aendere-mich-in-produktion}
-      - PORT=3000
-    volumes:
-      - zubenkoai-data:/app/server/data
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.zubenkoai.rule=Host(`zubenkoai.${DOMAIN_NAME}`)
-      - traefik.http.routers.zubenkoai.entrypoints=web,websecure
-      - traefik.http.routers.zubenkoai.tls=true
-      - traefik.http.routers.zubenkoai.tls.certresolver=mytlschallenge
-      - traefik.http.services.zubenkoai.loadbalancer.server.port=3000
+- `zubenkoai` als neuen Service **unter** `n8n:` einfügen (gleiche Einrückung wie `n8n`)
+- Im bestehenden `volumes:`-Block nur `zubenkoai-data:` hinzufügen – **kein zweites** `volumes:` anlegen
 
-volumes:
-  n8n_data:
-  traefik_data:
-  zubenkoai-data:
-```
+Wichtig: In YAML muss die Einrückung mit **Leerzeichen** (nicht Tabs) erfolgen. Es darf nur **einen** `volumes:`-Block am Ende geben.
+
+Vollständiges Beispiel siehe `docs/compose-beispiel.yaml`.
 
 **3. In `.env` ergänzen:**
 ```

@@ -9,7 +9,7 @@ const password = process.env.SEED_PASSWORD || 'admin123';
 
 const hash = bcrypt.hashSync(password, 10);
 try {
-  db.run('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, hash]);
+  db.run('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)', [username, hash]);
   const stmt = db.prepare('SELECT id FROM users WHERE username = ?');
   stmt.bind([username]);
   const row = stmt.step() ? stmt.getAsObject() : null;

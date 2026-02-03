@@ -27,35 +27,64 @@ function authMiddleware(req, res, next) {
     const token = auth.slice(7);
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.userId;
+    req.isAdmin = !!payload.isAdmin;
     next();
   } catch {
     return res.status(401).json({ error: 'Token ungültig' });
   }
 }
 
+function adminMiddleware(req, res, next) {
+  if (!req.isAdmin) {
+    return res.status(403).json({ error: 'Admin-Rechte erforderlich' });
+  }
+  next();
+}
+
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+    }
+    const db = getDb();
+    if (!db) {
+      return res.status(500).json({ error: 'Datenbank nicht verfügbar' });
+    }
+    const stmt = db.prepare('SELECT id, password_hash, is_locked, is_admin FROM users WHERE username = ?');
+    stmt.bind([username]);
+    let result = null;
+    if (stmt.step()) {
+      const row = stmt.getAsObject();
+      result = {
+        id: row.id,
+        password_hash: row.password_hash,
+        is_locked: row.is_locked ?? 0,
+        is_admin: row.is_admin ?? 0,
+      };
+    }
+    stmt.free();
+    if (!result) {
+      return res.status(401).json({ error: 'Falscher Benutzername oder Passwort' });
+    }
+    if (result.is_locked) {
+      return res.status(403).json({ error: 'Benutzerkonto wurde gesperrt.' });
+    }
+    const valid = bcrypt.compareSync(password, result.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Falscher Benutzername oder Passwort' });
+    }
+    const isAdmin = !!result.is_admin;
+    const token = jwt.sign({ userId: result.id, isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ token, isAdmin });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Serverfehler bei der Anmeldung' });
   }
-  const db = getDb();
-  const stmt = db.prepare('SELECT id, password_hash FROM users WHERE username = ?');
-  stmt.bind([username]);
-  let result = null;
-  if (stmt.step()) {
-    const row = stmt.getAsObject();
-    result = { id: row.id, password_hash: row.password_hash };
-  }
-  stmt.free();
-  if (!result) {
-    return res.status(401).json({ error: 'Falscher Benutzername oder Passwort' });
-  }
-  const valid = bcrypt.compareSync(password, result.password_hash);
-  if (!valid) {
-    return res.status(401).json({ error: 'Falscher Benutzername oder Passwort' });
-  }
-  const token = jwt.sign({ userId: result.id }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token });
+});
+
+app.get('/api/me', authMiddleware, (req, res) => {
+  res.json({ isAdmin: !!req.isAdmin });
 });
 
 app.get('/api/config', authMiddleware, (req, res) => {
@@ -83,6 +112,139 @@ app.get('/api/config', authMiddleware, (req, res) => {
     n8nWebhookUrl: result.n8n_webhook_url || '',
     n8nApiKey: result.n8n_api_key || '',
   });
+});
+
+// Admin API
+app.get('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
+  const db = getDb();
+  const stmt = db.prepare(
+    'SELECT id, username, is_admin, is_locked, created_at FROM users ORDER BY username'
+  );
+  const users = [];
+  while (stmt.step()) {
+    const row = stmt.getAsObject();
+    users.push({
+      id: row.id,
+      username: row.username,
+      isAdmin: !!row.is_admin,
+      isLocked: !!row.is_locked,
+      createdAt: row.created_at,
+    });
+  }
+  stmt.free();
+  res.json(users);
+});
+
+app.post('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
+  const { username, password } = req.body;
+  if (!username?.trim() || !password?.trim()) {
+    return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+  }
+  const db = getDb();
+  const hash = bcrypt.hashSync(password.trim(), 10);
+  try {
+    db.run('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username.trim(), hash]);
+    const stmt = db.prepare('SELECT id FROM users WHERE username = ?');
+    stmt.bind([username.trim()]);
+    const row = stmt.step() ? stmt.getAsObject() : null;
+    stmt.free();
+    if (row) {
+      db.run('INSERT OR IGNORE INTO user_config (user_id) VALUES (?)', [row.id]);
+    }
+    const { save } = await import('./db.js');
+    save();
+    res.status(201).json({ id: row?.id, username: username.trim() });
+  } catch (e) {
+    if (e.message?.includes('UNIQUE')) {
+      return res.status(409).json({ error: 'Benutzername existiert bereits' });
+    }
+    throw e;
+  }
+});
+
+app.patch('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
+  const { password, isLocked, isAdmin } = req.body;
+  const db = getDb();
+  const updates = [];
+  const params = [];
+  if (typeof password === 'string' && password.trim()) {
+    updates.push('password_hash = ?');
+    params.push(bcrypt.hashSync(password.trim(), 10));
+  }
+  if (typeof isLocked === 'boolean') {
+    updates.push('is_locked = ?');
+    params.push(isLocked ? 1 : 0);
+  }
+  if (typeof isAdmin === 'boolean') {
+    updates.push('is_admin = ?');
+    params.push(isAdmin ? 1 : 0);
+  }
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'Keine Änderungen angegeben' });
+  }
+  params.push(id);
+  const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+  const stmt = db.prepare(sql);
+  stmt.run(params);
+  const changed = db.getRowsModified();
+  stmt.free();
+  const { save } = await import('./db.js');
+  save();
+  if (changed === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/users/:id/config', authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
+  const db = getDb();
+  const stmt = db.prepare(
+    'SELECT eleven_labs_key, eleven_labs_agent_id, n8n_webhook_url, n8n_api_key FROM user_config WHERE user_id = ?'
+  );
+  stmt.bind([id]);
+  const row = stmt.step() ? stmt.getAsObject() : null;
+  stmt.free();
+  if (!row) {
+    return res.json({ elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' });
+  }
+  res.json({
+    elevenLabsKey: row.eleven_labs_key || '',
+    elevenLabsAgentId: row.eleven_labs_agent_id || '',
+    n8nWebhookUrl: row.n8n_webhook_url || '',
+    n8nApiKey: row.n8n_api_key || '',
+  });
+});
+
+app.put('/api/admin/users/:id/config', authMiddleware, adminMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
+  const { elevenLabsKey, elevenLabsAgentId, n8nWebhookUrl, n8nApiKey } = req.body;
+  const db = getDb();
+  const check = db.prepare('SELECT user_id FROM user_config WHERE user_id = ?');
+  check.bind([id]);
+  const exists = check.step();
+  check.free();
+  const { save } = await import('./db.js');
+  const ek = typeof elevenLabsKey === 'string' ? elevenLabsKey : '';
+  const eid = typeof elevenLabsAgentId === 'string' ? elevenLabsAgentId : '';
+  const nw = typeof n8nWebhookUrl === 'string' ? n8nWebhookUrl : '';
+  const nak = typeof n8nApiKey === 'string' ? n8nApiKey : '';
+  if (exists) {
+    const upd = db.prepare(`
+      UPDATE user_config SET eleven_labs_key=?, eleven_labs_agent_id=?, n8n_webhook_url=?, n8n_api_key=? WHERE user_id=?
+    `);
+    upd.run([ek, eid, nw, nak, id]);
+    upd.free();
+  } else {
+    db.run(
+      'INSERT INTO user_config (user_id, eleven_labs_key, eleven_labs_agent_id, n8n_webhook_url, n8n_api_key) VALUES (?, ?, ?, ?, ?)',
+      [id, ek, eid, nw, nak]
+    );
+  }
+  save();
+  res.json({ ok: true });
 });
 
 if (existsSync(distPath)) {

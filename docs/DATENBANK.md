@@ -1,6 +1,18 @@
 # Datenbank & Benutzerverwaltung
 
-Die App nutzt eine SQLite-Datenbank im Backend. Benutzer melden sich mit vordefinierten Zugangsdaten an; die Einstellungen (ElevenLabs, n8n) werden vom Administrator pro Benutzer in der Datenbank gepflegt.
+Die App nutzt eine SQLite-Datenbank im Backend. Benutzer melden sich mit vordefinierten Zugangsdaten an; die Einstellungen (ElevenLabs, n8n) werden vom Administrator pro Benutzer gepflegt.
+
+---
+
+## Admin-Seite (Web-UI)
+
+Nach der Anmeldung mit einem **Admin-Benutzer** (z.B. `admin` nach `npm run seed`) erscheint im Dashboard ein **Benutzer-Icon** in der linken Seitenleiste. Dort kannst du:
+
+- **Neue Benutzer** anlegen
+- **Passwörter** ändern
+- **Benutzer sperren** bzw. entsperren (gesperrte können sich nicht anmelden)
+- **Admin-Rechte** vergeben oder entziehen
+- **Konfiguration** (ElevenLabs, n8n) pro Benutzer bearbeiten
 
 ---
 
@@ -75,6 +87,8 @@ Die SQLite-Datei liegt unter `server/data/app.db`. Mit einem Tool wie [DB Browse
 | id           | INTEGER PRIMARY KEY      |
 | username     | TEXT UNIQUE              |
 | password_hash| TEXT (bcrypt)            |
+| is_admin     | INTEGER (0/1)            |
+| is_locked    | INTEGER (0/1)            |
 
 | user_config  |                          |
 |--------------|--------------------------|
