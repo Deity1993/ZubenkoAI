@@ -76,19 +76,34 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     addMessage('user', transcript);
   }, []);
 
-  const {
-    startSession,
-    endSession,
-    status: conversationStatus,
-    isSpeaking,
-    sendUserMessage,
-    sendUserActivity,
-  } = useConversation({
-    textOnly: mode === InteractionMode.TEXT,
+  // Zwei getrennte Verbindungen: Voice (Mikrofon+Audio) und Chat (nur Text) können parallel laufen
+  const voiceConversation = useConversation({
+    textOnly: false,
     onMessage: (props) => {
-      if (props.role === 'user' && props.message?.trim()) {
-        handleVoiceMessage(props.message);
+      if (props.role === 'user' && props.message?.trim()) handleVoiceMessage(props.message);
+      const role = String(props.role ?? '');
+      if ((role === 'agent' || role === 'assistant') && props.message?.trim()) {
+        addMessage('assistant', props.message);
       }
+    },
+    onConnect: () => {
+      setVoiceError(null);
+      addMessage('system', 'Sprachverbindung hergestellt.');
+    },
+    onDisconnect: () => {
+      setIsVoiceActive(false);
+      addMessage('system', 'Sprachverbindung beendet.');
+    },
+    onError: (message: string) => {
+      setVoiceError(message);
+      addMessage('system', `Fehler (Sprache): ${message}`);
+      setIsVoiceActive(false);
+    },
+  });
+
+  const chatConversation = useConversation({
+    textOnly: true,
+    onMessage: (props) => {
       const role = String(props.role ?? '');
       if ((role === 'agent' || role === 'assistant') && props.message?.trim() && waitingForChatResponseRef.current) {
         waitingForChatResponseRef.current = false;
@@ -98,20 +113,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
         addMessage('assistant', props.message);
       }
     },
-    onConnect: () => {
-      setVoiceError(null);
-      if (mode === InteractionMode.VOICE) {
-        addMessage('system', 'Sprachverbindung hergestellt. Always-on-Modus aktiv.');
-      }
-    },
-    onDisconnect: () => {
-      setIsVoiceActive(false);
-      addMessage('system', 'Sprachverbindung beendet.');
-    },
     onError: (message: string) => {
-      setVoiceError(message);
-      addMessage('system', `Fehler: ${message}`);
-      setIsVoiceActive(false);
+      addMessage('system', `Fehler (Chat): ${message}`);
       if (waitingForChatResponseRef.current) {
         waitingForChatResponseRef.current = false;
         if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
@@ -121,11 +124,25 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     },
   });
 
-  const conversationStatusRef = useRef(conversationStatus);
-  conversationStatusRef.current = conversationStatus;
+  const {
+    startSession: startVoiceSession,
+    endSession: endVoiceSession,
+    status: voiceStatus,
+    isSpeaking,
+  } = voiceConversation;
+
+  const {
+    startSession: startChatSession,
+    sendUserMessage,
+    sendUserActivity,
+    status: chatStatus,
+  } = chatConversation;
+
+  const chatStatusRef = useRef(chatStatus);
+  chatStatusRef.current = chatStatus;
 
   ensureTextSessionRef.current = useCallback(async () => {
-    if (conversationStatusRef.current === 'connected') return;
+    if (chatStatusRef.current === 'connected') return;
     const chatAgentId = keys.elevenLabsChatAgentId?.trim();
     if (!chatAgentId) {
       throw new Error('Bitte konfiguriere die ElevenLabs Chat-Agent-ID in den Admin-Einstellungen.');
@@ -135,26 +152,26 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     try {
       if (keys.elevenLabsKey?.trim()) {
         const signedUrl = await elevenLabsService.getSignedUrl(chatAgentId, keys.elevenLabsKey);
-        await startSession({ signedUrl, connectionType: 'websocket' });
+        await startChatSession({ signedUrl, connectionType: 'websocket' });
       } else {
-        await startSession({ agentId: chatAgentId, connectionType: 'webrtc' });
+        await startChatSession({ agentId: chatAgentId, connectionType: 'webrtc' });
       }
       const maxWait = 10000;
       const start = Date.now();
-      while (conversationStatusRef.current !== 'connected' && Date.now() - start < maxWait) {
+      while (chatStatusRef.current !== 'connected' && Date.now() - start < maxWait) {
         await new Promise((r) => setTimeout(r, 100));
       }
-      if (conversationStatusRef.current !== 'connected') {
+      if (chatStatusRef.current !== 'connected') {
         throw new Error('Verbindung zu ElevenLabs konnte nicht hergestellt werden.');
       }
     } finally {
       setIsConnecting(false);
     }
-  }, [keys.elevenLabsChatAgentId, keys.elevenLabsKey, startSession]);
+  }, [keys.elevenLabsChatAgentId, keys.elevenLabsKey, startChatSession]);
 
   const toggleVoice = async () => {
     if (isVoiceActive) {
-      await endSession();
+      await endVoiceSession();
       setIsVoiceActive(false);
       return;
     }
@@ -179,12 +196,12 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     try {
       if (keys.elevenLabsKey?.trim()) {
         const signedUrl = await elevenLabsService.getSignedUrl(keys.elevenLabsAgentId, keys.elevenLabsKey);
-        await startSession({
+        await startVoiceSession({
           signedUrl,
           connectionType: 'websocket',
         });
       } else {
-        await startSession({
+        await startVoiceSession({
           agentId: keys.elevenLabsAgentId,
           connectionType: 'webrtc',
         });
@@ -250,7 +267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
         <header className="h-16 border-b border-slate-700/60 flex items-center justify-between px-6 bg-slate-800/30">
           <div className="flex items-center space-x-3">
             <div className="w-2 h-2 rounded-full bg-emerald-500/80" />
-            <span className="text-sm font-medium text-slate-400">Orchestrator aktiv</span>
+            <span className="text-sm font-medium text-slate-400">ZubenkoAI aktiv</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -360,7 +377,9 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
           <div className="flex items-center gap-4">
             <span>v1.0.4</span>
             <span className="text-slate-600">·</span>
-            <span>ElevenLabs: <span className={conversationStatus === 'connected' ? 'text-emerald-500/90' : 'text-slate-600'}>{conversationStatus === 'connected' ? 'Verbunden' : 'Getrennt'}</span></span>
+            <span>Sprache: <span className={voiceStatus === 'connected' ? 'text-emerald-500/90' : 'text-slate-600'}>{voiceStatus === 'connected' ? 'Verbunden' : 'Getrennt'}</span></span>
+            <span className="text-slate-600">·</span>
+            <span>Chat: <span className={chatStatus === 'connected' ? 'text-emerald-500/90' : 'text-slate-600'}>{chatStatus === 'connected' ? 'Verbunden' : 'Getrennt'}</span></span>
           </div>
         </footer>
       </main>

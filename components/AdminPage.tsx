@@ -13,6 +13,8 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { apiService, AdminUser } from '../services/apiService';
 import { elevenLabsService } from '../services/elevenLabsService';
@@ -38,6 +40,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
   const [config, setConfig] = useState({ elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' });
   const [configLoading, setConfigLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ elevenLabs?: { ok: boolean; message: string }; elevenLabsChat?: { ok: boolean; message: string } } | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: string[]; updated: string[]; errors: string[] } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -142,6 +147,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
     }
   };
 
+  const handleExportCsv = async () => {
+    setError('');
+    try {
+      const blob = await apiService.exportUsersCsv();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'zubenkoai-users.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export fehlgeschlagen');
+    }
+  };
+
+  const handleImportCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    setError('');
+    setImportResult(null);
+    try {
+      const text = await file.text();
+      const result = await apiService.importUsersCsv(text);
+      setImportResult(result);
+      if (result.created.length > 0 || result.updated.length > 0) {
+        loadUsers();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import fehlgeschlagen');
+    } finally {
+      setImportLoading(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-6">
       <div className="max-w-3xl mx-auto">
@@ -185,7 +226,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
           </div>
         ) : (
           <>
-            <div className="flex justify-end mb-4">
+            <div className="flex flex-wrap justify-end gap-2 mb-4">
+              <button
+                onClick={handleExportCsv}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors"
+              >
+                <Download size={18} />
+                CSV exportieren
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleImportCsv}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-sm font-medium transition-colors"
+              >
+                {importLoading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                CSV importieren
+              </button>
               <button
                 onClick={() => setShowAdd(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-100 text-sm font-medium transition-colors"
@@ -194,6 +257,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                 Neuer Benutzer
               </button>
             </div>
+
+            {importResult && (
+              <div className="mb-4 p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2">
+                <h4 className="text-sm font-medium text-slate-400">Import-Ergebnis</h4>
+                {importResult.created.length > 0 && (
+                  <p className="text-sm text-emerald-400">Angelegt: {importResult.created.join(', ')}</p>
+                )}
+                {importResult.updated.length > 0 && (
+                  <p className="text-sm text-sky-400">Aktualisiert: {importResult.updated.join(', ')}</p>
+                )}
+                {importResult.errors.length > 0 && (
+                  <div className="text-sm text-amber-400">
+                    <p className="font-medium mb-1">Fehler:</p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {importResult.errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <button
+                  onClick={() => setImportResult(null)}
+                  className="text-xs text-slate-500 hover:text-slate-400"
+                >
+                  Schließen
+                </button>
+              </div>
+            )}
 
             {showAdd && (
               <div className="mb-6 p-4 rounded-xl bg-slate-800/60 border border-slate-700/60">

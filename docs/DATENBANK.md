@@ -1,6 +1,6 @@
 # Datenbank & Benutzerverwaltung
 
-Die App nutzt eine SQLite-Datenbank im Backend. Benutzer melden sich mit vordefinierten Zugangsdaten an; die Einstellungen (ElevenLabs, n8n) werden vom Administrator pro Benutzer gepflegt.
+Die App nutzt eine SQLite-Datenbank im Backend. Benutzer melden sich mit vordefinierten Zugangsdaten an; die Einstellungen (ElevenLabs) werden vom Administrator pro Benutzer gepflegt.
 
 ---
 
@@ -12,7 +12,31 @@ Nach der Anmeldung mit einem **Admin-Benutzer** (z.B. `admin` nach `npm run seed
 - **Passwörter** ändern
 - **Benutzer sperren** bzw. entsperren (gesperrte können sich nicht anmelden)
 - **Admin-Rechte** vergeben oder entziehen
-- **Konfiguration** (ElevenLabs, n8n) pro Benutzer bearbeiten
+- **Konfiguration** (ElevenLabs) pro Benutzer bearbeiten
+- **CSV exportieren**: Alle Benutzer mit Konfiguration als CSV herunterladen
+- **CSV importieren**: Benutzer aus CSV anlegen oder aktualisieren
+
+---
+
+## CSV Export/Import
+
+**Export**: In der Benutzerverwaltung auf „CSV exportieren“ klicken. Die Datei enthält alle Benutzer mit Konfiguration (Passwörter werden aus Sicherheitsgründen nicht exportiert).
+
+**Import**: Eine CSV-Datei mit folgendem Format verwenden:
+
+| Spalte        | Pflicht | Beschreibung                                                |
+|---------------|---------|-------------------------------------------------------------|
+| username      | ja      | Benutzername                                                |
+| password      | bei Neu | Passwort (min. 6 Zeichen). Bei bestehenden Usern optional.  |
+| isAdmin       | nein    | 1/0 oder true/false                                         |
+| isLocked      | nein    | 1/0 oder true/false                                         |
+| elevenLabsKey | nein    | ElevenLabs API-Key                                          |
+| elevenLabsAgentId | nein | Agent-ID (Sprache)                                      |
+| elevenLabsChatAgentId | nein | Agent-ID (Chat)                                        |
+| createdAt     | nein    | Wird ignoriert beim Import                                  |
+
+- **Neue Benutzer**: Wenn der Benutzername noch nicht existiert, wird er angelegt (Passwort erforderlich).
+- **Bestehende Benutzer**: Wenn der Benutzername existiert, werden Konfiguration und optional das Passwort aktualisiert.
 
 ---
 

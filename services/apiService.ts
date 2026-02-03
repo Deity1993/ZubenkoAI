@@ -148,6 +148,33 @@ export const apiService = {
     if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' };
     try { return JSON.parse(text); } catch { return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' }; }
   },
+  async exportUsersCsv(): Promise<Blob> {
+    const token = getToken();
+    if (!token) throw new Error('Nicht angemeldet');
+    const res = await fetch(`${API_BASE}/api/admin/users/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
+    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
+    if (!res.ok) throw new Error('Export fehlgeschlagen');
+    return res.blob();
+  },
+  async importUsersCsv(csv: string): Promise<{ created: string[]; updated: string[]; errors: string[] }> {
+    const token = getToken();
+    if (!token) throw new Error('Nicht angemeldet');
+    const res = await fetch(`${API_BASE}/api/admin/users/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ csv }),
+    });
+    const text = await res.text();
+    let data: { created?: string[]; updated?: string[]; errors?: string[]; error?: string } = {};
+    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
+    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
+    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
+    if (!res.ok) throw new Error(data.error || 'Import fehlgeschlagen');
+    return { created: data.created || [], updated: data.updated || [], errors: data.errors || [] };
+  },
   async setUserConfig(userId: number, config: Partial<ApiKeys>): Promise<void> {
     const token = getToken();
     if (!token) throw new Error('Nicht angemeldet');

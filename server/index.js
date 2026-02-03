@@ -164,6 +164,181 @@ app.post('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
   }
 });
 
+// CSV Export: Alle Benutzer mit Konfiguration (muss vor :id-Routen stehen)
+app.get('/api/admin/users/export', authMiddleware, adminMiddleware, (req, res) => {
+  const db = getDb();
+  const users = [];
+  const stmt = db.prepare(`
+    SELECT u.id, u.username, u.is_admin, u.is_locked, u.created_at,
+           uc.eleven_labs_key, uc.eleven_labs_agent_id, uc.eleven_labs_chat_agent_id
+    FROM users u
+    LEFT JOIN user_config uc ON uc.user_id = u.id
+    ORDER BY u.username
+  `);
+  while (stmt.step()) {
+    const row = stmt.getAsObject();
+    users.push({
+      id: row.id,
+      username: row.username || '',
+      isAdmin: !!row.is_admin,
+      isLocked: !!row.is_locked,
+      createdAt: row.created_at || '',
+      elevenLabsKey: row.eleven_labs_key || '',
+      elevenLabsAgentId: row.eleven_labs_agent_id || '',
+      elevenLabsChatAgentId: row.eleven_labs_chat_agent_id || '',
+    });
+  }
+  stmt.free();
+
+  const escapeCsv = (s) => {
+    if (s == null || s === '') return '';
+    const str = String(s);
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+
+  const header = 'username,password,isAdmin,isLocked,elevenLabsKey,elevenLabsAgentId,elevenLabsChatAgentId,createdAt';
+  const rows = users.map(u => [
+    escapeCsv(u.username),
+    '', // Passwort wird nie exportiert
+    escapeCsv(u.isAdmin ? '1' : '0'),
+    escapeCsv(u.isLocked ? '1' : '0'),
+    escapeCsv(u.elevenLabsKey),
+    escapeCsv(u.elevenLabsAgentId),
+    escapeCsv(u.elevenLabsChatAgentId),
+    escapeCsv(u.createdAt),
+  ].join(','));
+  const csv = [header, ...rows].join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="zubenkoai-users.csv"');
+  res.send('\uFEFF' + csv);
+});
+
+// CSV Import: Benutzer anlegen oder aktualisieren
+app.post('/api/admin/users/import', authMiddleware, adminMiddleware, (req, res) => {
+  const { csv } = req.body;
+  if (typeof csv !== 'string' || !csv.trim()) {
+    return res.status(400).json({ error: 'CSV-Inhalt fehlt' });
+  }
+
+  const parseCsvLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if ((c === ',' && !inQuotes) || c === '\n' || c === '\r') {
+        result.push(current.trim());
+        current = '';
+        if (c !== ',') break;
+      } else {
+        current += c;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const lines = csv.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) {
+    return res.status(400).json({ error: 'CSV muss Header und mindestens eine Datenzeile haben' });
+  }
+
+  const headerLine = parseCsvLine(lines[0]);
+  const header = headerLine.map(h => h.toLowerCase().trim());
+  const col = (name) => header.indexOf(name.toLowerCase());
+
+  const db = getDb();
+  const created = [];
+  const updated = [];
+  const errors = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const parts = parseCsvLine(lines[i]);
+    if (parts.length < 1) continue;
+
+    const getVal = (name, def = '') => {
+      const idx = col(name);
+      return idx >= 0 && parts[idx] !== undefined ? String(parts[idx]).trim() : def;
+    };
+
+    const username = getVal('username');
+    const password = getVal('password');
+    const isAdmin = ['1', 'true', 'ja', 'yes'].includes(getVal('isadmin', '0').toLowerCase());
+    const isLocked = ['1', 'true', 'ja', 'yes'].includes(getVal('islocked', '0').toLowerCase());
+    const elevenLabsKey = getVal('elevenlabskey');
+    const elevenLabsAgentId = getVal('elevenlabsagentid');
+    const elevenLabsChatAgentId = getVal('elevenlabschatagentid');
+
+    if (!username) {
+      errors.push(`Zeile ${i + 1}: Benutzername fehlt`);
+      continue;
+    }
+
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?');
+    existing.bind([username]);
+    const exists = existing.step();
+    const row = exists ? existing.getAsObject() : null;
+    existing.free();
+
+    if (exists && row) {
+      const id = row.id;
+      if (password) {
+        const hash = bcrypt.hashSync(password, 10);
+        db.run('UPDATE users SET password_hash=?, is_admin=?, is_locked=? WHERE id=?', [hash, isAdmin ? 1 : 0, isLocked ? 1 : 0, id]);
+      } else {
+        db.run('UPDATE users SET is_admin=?, is_locked=? WHERE id=?', [isAdmin ? 1 : 0, isLocked ? 1 : 0, id]);
+      }
+      const checkConfig = db.prepare('SELECT user_id FROM user_config WHERE user_id = ?');
+      checkConfig.bind([id]);
+      const configExists = checkConfig.step();
+      checkConfig.free();
+      if (configExists) {
+        db.run('UPDATE user_config SET eleven_labs_key=?, eleven_labs_agent_id=?, eleven_labs_chat_agent_id=? WHERE user_id=?', [elevenLabsKey, elevenLabsAgentId, elevenLabsChatAgentId, id]);
+      } else {
+        db.run('INSERT INTO user_config (user_id, eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id) VALUES (?,?,?,?)', [id, elevenLabsKey, elevenLabsAgentId, elevenLabsChatAgentId]);
+      }
+      updated.push(username);
+    } else {
+      if (!password || password.length < 6) {
+        errors.push(`Zeile ${i + 1}: Neuer Benutzer "${username}" braucht ein Passwort (min. 6 Zeichen)`);
+        continue;
+      }
+      try {
+        const hash = bcrypt.hashSync(password, 10);
+        db.run('INSERT INTO users (username, password_hash, is_admin, is_locked) VALUES (?,?,?,?)', [username, hash, isAdmin ? 1 : 0, isLocked ? 1 : 0]);
+        const sel = db.prepare('SELECT id FROM users WHERE username = ?');
+        sel.bind([username]);
+        const newRow = sel.step() ? sel.getAsObject() : null;
+        sel.free();
+        if (newRow) {
+          db.run('INSERT OR REPLACE INTO user_config (user_id, eleven_labs_key, eleven_labs_agent_id, eleven_labs_chat_agent_id) VALUES (?,?,?,?)', [newRow.id, elevenLabsKey, elevenLabsAgentId, elevenLabsChatAgentId]);
+          created.push(username);
+        }
+      } catch (e) {
+        if (e.message?.includes('UNIQUE')) {
+          errors.push(`Zeile ${i + 1}: Benutzername "${username}" existiert bereits`);
+        } else {
+          errors.push(`Zeile ${i + 1}: ${e.message}`);
+        }
+      }
+    }
+  }
+
+  save();
+  res.json({ created, updated, errors });
+});
+
 app.patch('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
