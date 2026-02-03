@@ -64,7 +64,10 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
       if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
       chatTimeoutRef.current = null;
       setIsProcessing(false);
-      const msg = error instanceof Error ? error.message : 'Verbindung zu ElevenLabs fehlgeschlagen.';
+      let msg = error instanceof Error ? error.message : 'Verbindung zu ElevenLabs fehlgeschlagen.';
+      if (msg === 'Failed to fetch') {
+        msg = 'Verbindung fehlgeschlagen. Mögliche Ursachen: Netzwerkproblem, blockierte Anfrage (Adblocker/Firewall), ElevenLabs API nicht erreichbar. Bitte Konsole (F12) prüfen.';
+      }
       addMessage('system', msg);
     }
   };
@@ -95,7 +98,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
       if (props.role === 'user' && props.message?.trim()) {
         handleVoiceMessage(props.message);
       }
-      if (props.role === 'assistant' && props.message?.trim() && waitingForChatResponseRef.current) {
+      const role = String(props.role ?? '');
+      if ((role === 'agent' || role === 'assistant') && props.message?.trim() && waitingForChatResponseRef.current) {
         waitingForChatResponseRef.current = false;
         if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
         chatTimeoutRef.current = null;

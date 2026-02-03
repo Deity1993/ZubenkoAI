@@ -11,8 +11,12 @@ import {
   Settings,
   X,
   Loader2,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { apiService, AdminUser } from '../services/apiService';
+import { elevenLabsService } from '../services/elevenLabsService';
+import { n8nService } from '../services/n8nService';
 
 interface AdminPageProps {
   username?: string;
@@ -34,6 +38,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
   const [configUser, setConfigUser] = useState<AdminUser | null>(null);
   const [config, setConfig] = useState({ elevenLabsKey: '', elevenLabsAgentId: '', n8nWebhookUrl: '', n8nApiKey: '' });
   const [configLoading, setConfigLoading] = useState(false);
+  const [testResult, setTestResult] = useState<{ elevenLabs?: { ok: boolean; message: string }; n8n?: { ok: boolean; message: string } } | null>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -95,6 +100,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
   const openConfig = async (u: AdminUser) => {
     setConfigUser(u);
     setConfigLoading(true);
+    setTestResult(null);
     try {
       const c = await apiService.getUserConfig(u.id);
       setConfig(c);
@@ -102,6 +108,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
       setError(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setConfigLoading(false);
+    }
+  };
+
+  const testConnections = async () => {
+    setTestResult(null);
+    const results: typeof testResult = {};
+    if (config.elevenLabsAgentId?.trim()) {
+      const r = await elevenLabsService.testConnection(config.elevenLabsAgentId, config.elevenLabsKey);
+      results.elevenLabs = r;
+    }
+    if (config.n8nWebhookUrl?.trim()) {
+      const r = await n8nService.testConnection(config.n8nWebhookUrl, config.n8nApiKey);
+      results.n8n = r;
+    }
+    if (Object.keys(results).length === 0) {
+      setTestResult({ elevenLabs: { ok: false, message: 'Agent-ID oder Webhook-URL eingeben, dann Prüfen.' } });
+    } else {
+      setTestResult(results);
     }
   };
 
@@ -315,7 +339,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                       <input
                         type="password"
                         value={config.elevenLabsKey}
-                        onChange={(e) => setConfig({ ...config, elevenLabsKey: e.target.value })}
+                        onChange={(e) => { setConfig({ ...config, elevenLabsKey: e.target.value }); setTestResult(null); }}
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
@@ -324,7 +348,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                       <input
                         type="text"
                         value={config.elevenLabsAgentId}
-                        onChange={(e) => setConfig({ ...config, elevenLabsAgentId: e.target.value })}
+                        onChange={(e) => { setConfig({ ...config, elevenLabsAgentId: e.target.value }); setTestResult(null); }}
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
@@ -333,7 +357,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                       <input
                         type="url"
                         value={config.n8nWebhookUrl}
-                        onChange={(e) => setConfig({ ...config, n8nWebhookUrl: e.target.value })}
+                        onChange={(e) => { setConfig({ ...config, n8nWebhookUrl: e.target.value }); setTestResult(null); }}
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
@@ -342,27 +366,53 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                       <input
                         type="password"
                         value={config.n8nApiKey}
-                        onChange={(e) => setConfig({ ...config, n8nApiKey: e.target.value })}
+                        onChange={(e) => { setConfig({ ...config, n8nApiKey: e.target.value }); setTestResult(null); }}
                         className="w-full mt-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
+                    {testResult && (
+                      <div className="space-y-2 pt-2 border-t border-slate-700">
+                        {testResult.elevenLabs && (
+                          <div className={`flex items-start gap-2 text-sm ${testResult.elevenLabs.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {testResult.elevenLabs.ok ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
+                            <span>{testResult.elevenLabs.message}</span>
+                          </div>
+                        )}
+                        {testResult.n8n && (
+                          <div className={`flex items-start gap-2 text-sm ${testResult.n8n.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {testResult.n8n.ok ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
+                            <span>{testResult.n8n.message}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
-              <div className="p-4 border-t border-slate-700 flex justify-end gap-2">
+              <div className="p-4 border-t border-slate-700 flex justify-between gap-2">
                 <button
-                  onClick={() => setConfigUser(null)}
-                  className="px-4 py-2 rounded-lg bg-slate-700 text-sm"
-                >
-                  Schließen
-                </button>
-                <button
-                  onClick={saveConfig}
+                  type="button"
+                  onClick={testConnections}
                   disabled={configLoading}
-                  className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-50 text-sm font-medium"
+                  className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-sm font-medium"
                 >
-                  Speichern
+                  Verbindung prüfen
                 </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfigUser(null)}
+                    className="px-4 py-2 rounded-lg bg-slate-700 text-sm"
+                  >
+                    Schließen
+                  </button>
+                  <button
+                    onClick={saveConfig}
+                    disabled={configLoading}
+                    className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-50 text-sm font-medium"
+                  >
+                    Speichern
+                  </button>
+                </div>
               </div>
             </div>
           </div>

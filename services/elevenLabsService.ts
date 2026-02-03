@@ -21,7 +21,7 @@ export const elevenLabsService = {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`ElevenLabs Signed URL fehlgeschlagen: ${response.status} ${errorText}`);
+      throw new Error(`ElevenLabs API Fehler ${response.status}: ${errorText.slice(0, 100) || response.statusText}`);
     }
 
     const text = await response.text();
@@ -31,5 +31,24 @@ export const elevenLabsService = {
       throw new Error('Keine signed_url in der ElevenLabs-Antwort erhalten.');
     }
     return body.signed_url;
+  },
+
+  /**
+   * Prüft, ob API-Key und Agent-ID gültig sind und die ElevenLabs API erreichbar ist.
+   */
+  testConnection: async (agentId: string, apiKey?: string): Promise<{ ok: boolean; message: string }> => {
+    if (!agentId?.trim()) {
+      return { ok: false, message: 'Agent-ID fehlt.' };
+    }
+    if (apiKey?.trim()) {
+      try {
+        const url = await this.getSignedUrl(agentId.trim(), apiKey.trim());
+        return { ok: !!url, message: url ? 'ElevenLabs: Verbindung erfolgreich.' : 'Unerwartete Antwort.' };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Verbindung fehlgeschlagen.';
+        return { ok: false, message: `ElevenLabs: ${msg}` };
+      }
+    }
+    return { ok: false, message: 'Für die Prüfung wird ein ElevenLabs API-Key benötigt (öffentliche Agents können nicht getestet werden).' };
   },
 };
