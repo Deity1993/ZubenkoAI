@@ -3,13 +3,17 @@ import { ApiKeys } from '../types';
 
 export const n8nService = {
   triggerWebhook: async (message: string, keys: ApiKeys) => {
+    if (!keys.n8nWebhookUrl?.trim()) {
+      throw new Error('n8n Webhook-URL fehlt. Bitte in der Admin-Konfiguration eintragen.');
+    }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (keys.n8nApiKey?.trim()) {
+      headers['X-N8N-API-KEY'] = keys.n8nApiKey.trim();
+    }
     try {
-      const response = await fetch(keys.n8nWebhookUrl, {
+      const response = await fetch(keys.n8nWebhookUrl.trim(), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-N8N-API-KEY': keys.n8nApiKey,
-        },
+        headers,
         body: JSON.stringify({
           message,
           timestamp: new Date().toISOString(),
@@ -18,7 +22,8 @@ export const n8nService = {
       });
 
       if (!response.ok) {
-        throw new Error(`n8n Error: ${response.statusText}`);
+        const body = await response.text();
+        throw new Error(`n8n ${response.status}: ${response.statusText}${body ? ` – ${body.slice(0, 100)}` : ''}`);
       }
 
       const data = await response.json();

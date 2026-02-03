@@ -47,7 +47,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
       const response = await n8nService.triggerWebhook(userMsg, keys);
       addMessage('assistant', response);
     } catch (error) {
-      addMessage('system', "Verbindung zum n8n-Workflow fehlgeschlagen. Bitte überprüfe deine Einstellungen.");
+      const msg = error instanceof Error ? error.message : 'Verbindung zum n8n-Workflow fehlgeschlagen.';
+      addMessage('system', msg);
     } finally {
       setIsProcessing(false);
     }
@@ -61,7 +62,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
       const response = await n8nService.triggerWebhook(transcript, currentKeys);
       addMessage('assistant', response);
     } catch (error) {
-      addMessage('system', "Verbindung zum n8n-Workflow fehlgeschlagen. Bitte überprüfe deine Einstellungen.");
+      const msg = error instanceof Error ? error.message : 'Verbindung zum n8n-Workflow fehlgeschlagen.';
+      addMessage('system', msg);
     }
   }, []);
 
