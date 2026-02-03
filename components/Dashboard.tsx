@@ -25,6 +25,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
   const chatEndRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef(keys);
   keysRef.current = keys;
+  const waitingForChatResponseRef = useRef(false);
+  const chatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,6 +36,8 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     setMessages(prev => [...prev, { role, content, timestamp: Date.now() }]);
   };
 
+  const ensureTextSessionRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputValue.trim() || isProcessing) return;
@@ -42,15 +46,26 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     setInputValue('');
     addMessage('user', userMsg);
     setIsProcessing(true);
+    waitingForChatResponseRef.current = true;
 
     try {
-      const response = await n8nService.triggerWebhook(userMsg, keys);
-      addMessage('assistant', response);
+      await ensureTextSessionRef.current();
+      sendUserMessage(userMsg);
+      chatTimeoutRef.current = setTimeout(() => {
+        if (waitingForChatResponseRef.current) {
+          waitingForChatResponseRef.current = false;
+          setIsProcessing(false);
+          addMessage('system', 'Keine Antwort vom Agent erhalten. Bitte erneut versuchen.');
+        }
+        chatTimeoutRef.current = null;
+      }, 60000);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Verbindung zum n8n-Workflow fehlgeschlagen.';
-      addMessage('system', msg);
-    } finally {
+      waitingForChatResponseRef.current = false;
+      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+      chatTimeoutRef.current = null;
       setIsProcessing(false);
+      const msg = error instanceof Error ? error.message : 'Verbindung zu ElevenLabs fehlgeschlagen.';
+      addMessage('system', msg);
     }
   };
 
@@ -72,15 +87,27 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
     endSession,
     status: conversationStatus,
     isSpeaking,
+    sendUserMessage,
+    sendUserActivity,
   } = useConversation({
+    textOnly: mode === InteractionMode.TEXT,
     onMessage: (props) => {
       if (props.role === 'user' && props.message?.trim()) {
         handleVoiceMessage(props.message);
       }
+      if (props.role === 'assistant' && props.message?.trim() && waitingForChatResponseRef.current) {
+        waitingForChatResponseRef.current = false;
+        if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+        chatTimeoutRef.current = null;
+        setIsProcessing(false);
+        addMessage('assistant', props.message);
+      }
     },
     onConnect: () => {
       setVoiceError(null);
-      addMessage('system', 'Sprachverbindung hergestellt. Always-on-Modus aktiv.');
+      if (mode === InteractionMode.VOICE) {
+        addMessage('system', 'Sprachverbindung hergestellt. Always-on-Modus aktiv.');
+      }
     },
     onDisconnect: () => {
       setIsVoiceActive(false);
@@ -90,8 +117,44 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
       setVoiceError(message);
       addMessage('system', `Fehler: ${message}`);
       setIsVoiceActive(false);
+      if (waitingForChatResponseRef.current) {
+        waitingForChatResponseRef.current = false;
+        if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+        chatTimeoutRef.current = null;
+        setIsProcessing(false);
+      }
     },
   });
+
+  const conversationStatusRef = useRef(conversationStatus);
+  conversationStatusRef.current = conversationStatus;
+
+  ensureTextSessionRef.current = useCallback(async () => {
+    if (conversationStatusRef.current === 'connected') return;
+    if (!keys.elevenLabsAgentId?.trim()) {
+      throw new Error('Bitte konfiguriere die ElevenLabs Agent ID in den Admin-Einstellungen.');
+    }
+    setIsConnecting(true);
+    setVoiceError(null);
+    try {
+      if (keys.elevenLabsKey?.trim()) {
+        const signedUrl = await elevenLabsService.getSignedUrl(keys.elevenLabsAgentId, keys.elevenLabsKey);
+        await startSession({ signedUrl, connectionType: 'websocket' });
+      } else {
+        await startSession({ agentId: keys.elevenLabsAgentId, connectionType: 'webrtc' });
+      }
+      const maxWait = 10000;
+      const start = Date.now();
+      while (conversationStatusRef.current !== 'connected' && Date.now() - start < maxWait) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (conversationStatusRef.current !== 'connected') {
+        throw new Error('Verbindung zu ElevenLabs konnte nicht hergestellt werden.');
+      }
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [keys.elevenLabsAgentId, keys.elevenLabsKey, startSession]);
 
   const toggleVoice = async () => {
     if (isVoiceActive) {
@@ -254,7 +317,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
                 {messages.length === 0 && (
                   <div className="h-full flex items-center justify-center flex-col text-slate-500 space-y-3">
                     <MessageSquare size={40} className="opacity-30" />
-                    <p className="text-sm">Starte eine Textkonversation mit deinem Orchestrator</p>
+                    <p className="text-sm">Schreibe eine Nachricht – sie wird an den ElevenLabs-Agent gesendet</p>
                   </div>
                 )}
                 {messages.map((msg, idx) => (
@@ -277,8 +340,11 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
                 <input 
                   type="text"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Anweisungen an n8n senden…"
+                  onChange={(e) => {
+                    setInputValue(e.target.value);
+                    sendUserActivity?.();
+                  }}
+                  placeholder="Nachricht an ElevenLabs-Agent senden…"
                   className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg py-3 pl-5 pr-14 focus:outline-none focus:ring-1 focus:ring-slate-500/50 focus:border-slate-500/50 transition-colors text-sm"
                 />
                 <button 
