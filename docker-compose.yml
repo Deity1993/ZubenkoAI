@@ -1,0 +1,30 @@
+services:
+  zubenkoai:
+    build: .
+    restart: unless-stopped
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-aendere-mich-in-produktion}
+      - PORT=3000
+    volumes:
+      - zubenkoai-data:/app/server/data
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      # HTTPS (websecure)
+      - "traefik.http.routers.zubenkoai.rule=Host(`zubenkoai.deine-domain.de`)"
+      - "traefik.http.routers.zubenkoai.entrypoints=websecure"
+      - "traefik.http.routers.zubenkoai.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zubenkoai.loadbalancer.server.port=3000"
+      # HTTP → HTTPS Redirect (optional, falls du web hast)
+      - "traefik.http.middlewares.zubenkoai-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.zubenkoai-http.rule=Host(`zubenkoai.deine-domain.de`)"
+      - "traefik.http.routers.zubenkoai-http.entrypoints=web"
+      - "traefik.http.routers.zubenkoai-http.middlewares=zubenkoai-redirect"
+
+networks:
+  traefik:
+    external: true
+
+volumes:
+  zubenkoai-data:

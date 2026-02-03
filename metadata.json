@@ -1,0 +1,8 @@
+
+{
+  "name": "AI Voice-to-n8n Orchestrator",
+  "description": "An ultra-modern intelligent voice interface for orchestrating n8n workflows using ElevenLabs Conversational AI.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

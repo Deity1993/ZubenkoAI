@@ -1,0 +1,31 @@
+{
+  "name": "ai-voice-to-n8n-orchestrator",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "cd server && npm run start",
+    "start": "npm run build && cd server && npm install && npm start",
+    "serve": "cd server && npm start",
+    "build": "npx vite build",
+    "preview": "vite preview",
+    "android": "npm run build && npx cap sync android && npx cap open android",
+    "android:sync": "npm run build && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/core": "^8.0.2",
+    "@elevenlabs/react": "^0.13.1",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

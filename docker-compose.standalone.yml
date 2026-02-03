@@ -1,0 +1,29 @@
+# Eigenständiges docker-compose für ZubenkoAI
+# Verbindet sich mit dem Netzwerk deiner n8n-compose
+# Nutzung: docker compose -f docker-compose.standalone.yml up -d --build
+
+services:
+  zubenkoai:
+    build: .
+    restart: unless-stopped
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-aendere-mich-in-produktion}
+      - PORT=3000
+    volumes:
+      - zubenkoai-data:/app/server/data
+    networks:
+      - n8n-compose_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zubenkoai.rule=Host(`zubenkoai.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.zubenkoai.entrypoints=web,websecure"
+      - "traefik.http.routers.zubenkoai.tls=true"
+      - "traefik.http.routers.zubenkoai.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.zubenkoai.loadbalancer.server.port=3000"
+
+networks:
+  n8n-compose_default:
+    external: true
+
+volumes:
+  zubenkoai-data:

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZubenkoAI</string>
+    <string name="title_activity_main">ZubenkoAI</string>
+    <string name="package_name">de.sprachorchestrator.app</string>
+    <string name="custom_url_scheme">de.sprachorchestrator.app</string>
+</resources>
