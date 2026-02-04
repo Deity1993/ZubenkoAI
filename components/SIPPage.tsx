@@ -152,22 +152,22 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden gap-4 p-6">
+      <div className="flex flex-1 overflow-hidden gap-2 p-2">
         {/* Dialer Section */}
-        <div className="flex-1 flex flex-col space-y-2">
+        <div className="flex-1 flex flex-col space-y-1">
           {/* Call Display - Ultra Compact */}
-          <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-2">
+          <div className="bg-slate-800/50 border border-slate-700/60 rounded p-1">
             <div className="text-center">
-              <p className="text-slate-500 text-[10px] mb-0.5">
+              <p className="text-slate-500 text-[8px] mb-0">
                 {isCallActive ? 'Anruf aktiv' : 'Nr.'}
               </p>
-              <div className="text-lg font-mono font-bold text-slate-100 tracking-wider mb-0.5 min-h-6">
+              <div className="text-base font-mono font-bold text-slate-100 tracking-wider mb-0 min-h-5 line-clamp-1">
                 {isCallActive && currentCall 
                   ? currentCall.remoteNumber 
                   : dialNumber || '–'}
               </div>
               {isCallActive && (
-                <div className="text-sm font-mono text-emerald-400">
+                <div className="text-xs font-mono text-emerald-400">
                   {formatDuration(callDuration)}
                 </div>
               )}
@@ -179,31 +179,31 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
             type="text"
             value={dialNumber}
             onChange={(e) => setDialNumber(e.target.value.replace(/[^\d\-()#+* ]/g, ''))}
-            placeholder="Num..."
+            placeholder="..."
             disabled={isCallActive}
-            className="w-full bg-slate-800/60 border border-slate-600/60 rounded-full px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-slate-800/60 border border-slate-600/60 rounded-full px-2 py-1 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           {/* Dial Pad */}
-          <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-2">
-            <div className="grid grid-cols-3 gap-1.5 mb-2">
+          <div className="bg-slate-800/50 border border-slate-700/60 rounded p-1">
+            <div className="grid grid-cols-3 gap-1 mb-1">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(digit => (
                 <button
                   key={digit}
                   onClick={() => !isCallActive && handleDialNumber(digit)}
                   disabled={isCallActive}
-                  className="aspect-square bg-slate-700 hover:bg-slate-600 rounded-full text-base font-semibold text-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="aspect-square bg-slate-700 hover:bg-slate-600 rounded-full text-sm font-semibold text-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0"
                 >
                   {digit}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-1.5 mb-2">
+            <div className="flex gap-1 mb-1">
               <button
                 onClick={handleBackspace}
                 disabled={!dialNumber || isCallActive}
-                className="flex-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ←
               </button>
@@ -212,29 +212,29 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
                   setDialNumber('');
                 }}
                 disabled={!dialNumber || isCallActive}
-                className="flex-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 C
               </button>
             </div>
 
-            <div className="flex gap-1.5">
+            <div className="flex gap-1">
               {isCallActive ? (
                 <button
                   onClick={handleEndCall}
-                  className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold flex items-center justify-center gap-1 transition-colors text-xs"
+                  className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold flex items-center justify-center gap-0.5 transition-colors text-[10px]"
                 >
-                  <PhoneOff size={14} />
-                  Auflegen
+                  <PhoneOff size={10} />
+                  Auf
                 </button>
               ) : (
                 <button
                   onClick={handleCall}
                   disabled={!dialNumber.trim() || !isRegistered}
-                  className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-full text-white font-semibold flex items-center justify-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                  className="flex-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 rounded-full text-white font-semibold flex items-center justify-center gap-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[10px]"
                 >
-                  <Phone size={14} />
-                  Anrufen
+                  <Phone size={10} />
+                  An
                 </button>
               )}
             </div>
