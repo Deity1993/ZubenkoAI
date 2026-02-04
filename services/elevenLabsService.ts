@@ -42,7 +42,7 @@ export const elevenLabsService = {
     }
     if (apiKey?.trim()) {
       try {
-        const url = await this.getSignedUrl(agentId.trim(), apiKey.trim());
+        const url = await elevenLabsService.getSignedUrl(agentId.trim(), apiKey.trim());
         return { ok: !!url, message: url ? 'ElevenLabs: Verbindung erfolgreich.' : 'Unerwartete Antwort.' };
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Verbindung fehlgeschlagen.';

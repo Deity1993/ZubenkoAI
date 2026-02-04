@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MessageSquare, Power, Settings, LogOut, Activity, Command, Waves, Users } from 'lucide-react';
+import { Mic, MessageSquare, Power, Settings, LogOut, Activity, Command, Waves, Users, Phone } from 'lucide-react';
 import { useConversation } from '@elevenlabs/react';
 import { ApiKeys, InteractionMode, ChatMessage } from '../types';
 import WaveformVisualizer from './WaveformVisualizer';
 import { elevenLabsService } from '../services/elevenLabsService';
+import SIPPage from './SIPPage';
+import SIPSettings from './SIPSettings';
 
 interface DashboardProps {
   keys: ApiKeys;
@@ -21,6 +23,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showSIPSettings, setShowSIPSettings] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef(keys);
   keysRef.current = keys;
@@ -240,6 +243,13 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
             >
               <MessageSquare size={22} />
             </button>
+            <button 
+              onClick={() => setMode(InteractionMode.SIP)}
+              className={`p-2.5 rounded-lg transition-colors ${mode === InteractionMode.SIP ? 'bg-slate-600/50 text-slate-200' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}`}
+              title="SIP-Telefonie"
+            >
+              <Phone size={22} />
+            </button>
           </nav>
         </div>
 
@@ -324,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
 
               <WaveformVisualizer isActive={isVoiceActive} />
             </div>
-          ) : (
+          ) : mode === InteractionMode.TEXT ? (
             <div className="max-w-3xl mx-auto h-full flex flex-col space-y-4">
               <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                 {messages.length === 0 && (
@@ -369,6 +379,18 @@ const Dashboard: React.FC<DashboardProps> = ({ keys, username, onLogout, onOpenS
                 </button>
               </form>
             </div>
+          ) : (
+            <>
+              {showSIPSettings && (
+                <SIPSettings onClose={() => setShowSIPSettings(false)} />
+              )}
+              {!showSIPSettings && (
+                <SIPPage 
+                  onOpenSettings={() => setShowSIPSettings(true)}
+                  onLogout={onLogout}
+                />
+              )}
+            </>
           )}
         </div>
 

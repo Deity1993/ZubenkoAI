@@ -18,9 +18,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const { username: loggedInUser } = await apiService.login(username, password);
+      const { isAdmin } = await apiService.login(username, password);
       const keys = await apiService.getConfig();
-      onLogin(keys, loggedInUser);
+      onLogin(keys, username);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler bei der Anmeldung.');
     } finally {
