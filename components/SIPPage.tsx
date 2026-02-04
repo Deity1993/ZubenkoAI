@@ -154,7 +154,7 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden gap-2 p-2">
         {/* Dialer Section */}
-        <div className="flex-1 flex flex-col space-y-1">
+          <div className="flex-1 flex flex-col items-center justify-center space-y-1">
           {/* Call Display - Restored larger number display */}
           <div className="bg-slate-800/50 border border-slate-700/60 rounded p-0.5">
             <div className="text-center">
@@ -181,18 +181,19 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
             onChange={(e) => setDialNumber(e.target.value.replace(/[^\d\-()#+* ]/g, ''))}
             placeholder="..."
             disabled={isCallActive}
-            className="w-full bg-slate-800/60 border border-slate-600/60 rounded-full px-1 py-0.5 text-[10px] text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-3/4 mx-auto bg-slate-800/60 border border-slate-600/60 rounded-full px-4 py-2 text-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           {/* Dial Pad */}
           <div className="bg-slate-800/50 border border-slate-700/60 rounded p-0.5 max-w-xs">
-            <div className="grid grid-cols-3 gap-0.5">
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded p-1 max-w-md mx-auto">
+            <div className="grid grid-cols-3 gap-2">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(digit => (
                 <button
                   key={digit}
                   onClick={() => !isCallActive && handleDialNumber(digit)}
                   disabled={isCallActive}
-                  className="h-4 bg-slate-700 hover:bg-slate-600 rounded text-[7px] font-bold text-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-16 h-16 bg-slate-700 hover:bg-slate-600 rounded-full text-lg font-semibold text-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {digit}
                 </button>
@@ -200,10 +201,11 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
             </div>
 
             <div className="flex gap-0.5 mt-0.5">
+            <div className="flex gap-2 mt-2">
               <button
                 onClick={handleBackspace}
                 disabled={!dialNumber || isCallActive}
-                className="flex-1 h-3 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 text-[6px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 ←
               </button>
@@ -212,7 +214,7 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
                   setDialNumber('');
                 }}
                 disabled={!dialNumber || isCallActive}
-                className="flex-1 h-3 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 text-[6px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 C
               </button>
