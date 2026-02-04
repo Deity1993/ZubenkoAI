@@ -10,7 +10,7 @@ import { initDb, getDb, save } from './db.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'zubenkoai-secret-change-in-production';
 const distPath = join(__dirname, '..', 'dist');
-const PORT = process.env.PORT || (existsSync(distPath) ? 3000 : 3001);
+const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
