@@ -5,9 +5,11 @@ class SIPService {
   private ua: any = null;
   private sipConfig: SIPConfig | null = null;
   private currentCall: SIPCall | null = null;
+  private currentSession: any = null;
   private contacts: SIPContact[] = [];
   private registrationState = false;
   private listeners: Record<string, Function[]> = {};
+  private remoteAudio: HTMLAudioElement | null = null;
 
   /**
    * Initialisiert und verbindet den SIP-Stack mit JsSIP
@@ -80,6 +82,11 @@ class SIPService {
       });
 
       this.ua.on("newRTCSession", (e: any) => {
+        this.currentSession = e?.session || null;
+        if (this.currentSession) {
+          this.attachSessionMedia(this.currentSession);
+          this.bindSessionEvents(this.currentSession);
+        }
         this.emit("newRTCSession", e);
       });
 
@@ -155,6 +162,14 @@ class SIPService {
       if (this.currentCall) {
         await this.endCall();
       }
+      if (this.currentSession) {
+        try {
+          this.currentSession.terminate();
+        } catch {
+          /* ignore */
+        }
+        this.currentSession = null;
+      }
       if (this.ua) {
         this.ua.unregister();
         this.ua.stop();
@@ -182,6 +197,14 @@ class SIPService {
         throw new Error("Ungültige Telefonnummer");
       }
 
+      if (!this.ua) {
+        throw new Error("SIP-Client nicht bereit");
+      }
+
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("Browser unterstützt kein Mikrofon");
+      }
+
       const callId = this.generateCallId();
       const call: SIPCall = {
         callId,
@@ -194,15 +217,26 @@ class SIPService {
 
       this.currentCall = call;
 
-      // Simuliere einen erfolgreichen Anruf
-      setTimeout(() => {
-        if (
-          this.currentCall?.callId === callId &&
-          this.currentCall.status === "connecting"
-        ) {
-          this.currentCall.status = "connected";
-        }
-      }, 2000);
+      // Stelle sicher, dass der Browser das Mikrofon freigibt (User-Interaction vorhanden)
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mic.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        throw new Error("Mikrofonzugriff verweigert oder nicht verfügbar");
+      }
+
+      const target = `sip:${phoneNumber}@${this.sipConfig.registrar}`;
+      const session = this.ua.call(target, {
+        mediaConstraints: { audio: true, video: false },
+        rtcOfferConstraints: {
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false,
+        },
+      });
+
+      this.currentSession = session;
+      this.attachSessionMedia(session);
+      this.bindSessionEvents(session);
 
       return {
         success: true,
@@ -225,6 +259,14 @@ class SIPService {
    * Beendet den aktuellen Anruf
    */
   async endCall(): Promise<void> {
+    if (this.currentSession) {
+      try {
+        this.currentSession.terminate();
+      } catch {
+        /* ignore */
+      }
+      this.currentSession = null;
+    }
     if (this.currentCall) {
       this.currentCall.status = "ended";
       this.currentCall = null;
@@ -470,6 +512,55 @@ class SIPService {
     } catch (error) {
       throw new Error("Konnte Kontakt-Datei nicht parsen");
     }
+  }
+
+  setRemoteAudioElement(element: HTMLAudioElement | null): void {
+    this.remoteAudio = element;
+  }
+
+  private attachSessionMedia(session: any): void {
+    session?.on?.("peerconnection", (e: any) => {
+      const pc = e?.peerconnection;
+      if (!pc) return;
+
+      const handleStream = (stream: MediaStream) => {
+        if (this.remoteAudio) {
+          this.remoteAudio.srcObject = stream;
+          this.remoteAudio.play().catch(() => {
+            /* autoplay can be blocked */
+          });
+        }
+      };
+
+      pc.addEventListener("track", (ev: any) => {
+        const stream = ev?.streams?.[0];
+        if (stream) handleStream(stream);
+      });
+
+      pc.onaddstream = (ev: any) => {
+        if (ev?.stream) handleStream(ev.stream);
+      };
+    });
+  }
+
+  private bindSessionEvents(session: any): void {
+    session?.on?.("progress", () => {
+      if (this.currentCall) this.currentCall.status = "connecting";
+    });
+    session?.on?.("accepted", () => {
+      if (this.currentCall) this.currentCall.status = "connected";
+    });
+    session?.on?.("confirmed", () => {
+      if (this.currentCall) this.currentCall.status = "connected";
+    });
+    session?.on?.("failed", () => {
+      if (this.currentCall) this.currentCall.status = "ended";
+      this.currentSession = null;
+    });
+    session?.on?.("ended", () => {
+      if (this.currentCall) this.currentCall.status = "ended";
+      this.currentSession = null;
+    });
   }
 
   constructor() {

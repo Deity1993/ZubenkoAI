@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Phone, PhoneOff, Copy, Download, Upload, Trash2 } from "lucide-react";
 import { sipService } from "../services/sipService";
 import { SIPCall, SIPContact } from "../types";
@@ -22,6 +22,12 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [regError, setRegError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    sipService.setRemoteAudioElement(remoteAudioRef.current);
+    return () => sipService.setRemoteAudioElement(null);
+  }, []);
 
   useEffect(() => {
     // Lade Kontakte beim Start
@@ -171,6 +177,7 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-slate-200">
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       {/* Header */}
       <header className="h-16 border-b border-slate-700/60 flex items-center justify-between px-6 bg-slate-800/30">
         <div className="flex items-center space-x-3">
