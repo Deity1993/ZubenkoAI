@@ -16,6 +16,7 @@ try {
   stmt.free();
   if (row) {
     db.run('INSERT INTO user_config (user_id) VALUES (?)', [row.id]);
+    db.run('INSERT INTO sip_config (user_id) VALUES (?)', [row.id]);
   }
   save();
   console.log(`Benutzer "${username}" angelegt (Passwort: ${password})`);

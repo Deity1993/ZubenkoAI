@@ -26,6 +26,7 @@ try {
   stmt.free();
   if (row) {
     db.run('INSERT OR IGNORE INTO user_config (user_id) VALUES (?)', [row.id]);
+    db.run('INSERT OR IGNORE INTO sip_config (user_id) VALUES (?)', [row.id]);
   }
   save();
   console.log(`Benutzer "${username}" angelegt.`);
