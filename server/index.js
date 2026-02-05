@@ -17,6 +17,8 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 await initDb();
+// Ensure database is saved on startup
+save();
 
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
