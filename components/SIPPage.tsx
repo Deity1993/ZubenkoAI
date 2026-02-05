@@ -273,14 +273,6 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
                   </div>
                 </div>
               </div>
-                  onClick={() => setShowAddContact(false)}
-                  className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-200 transition-colors"
-                >
-                  Abbrechen
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Contacts List */}
           <div className="flex-1 overflow-y-auto space-y-1 p-3">
