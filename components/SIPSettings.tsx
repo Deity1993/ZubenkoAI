@@ -83,10 +83,8 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
       return;
     }
 
-    if (protocol === 'TLS' && !certificatePath) {
-      setStatusMessage({ type: 'error', message: 'TLS erfordert ein Zertifikat' });
-      return;
-    }
+    // TLS-Zertifikat wird nur für direkte SIP/TLS-Verbindungen benötigt.
+    // Bei WebSocket/WSS übernimmt der Server das Zertifikat.
 
     setIsRegistering(true);
     setStatusMessage(null);
