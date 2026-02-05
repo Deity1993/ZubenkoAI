@@ -120,7 +120,12 @@ function saveDb() {
   if (db) {
     const data = db.export();
     const buffer = Buffer.from(data);
-    writeFileSync(DB_PATH, buffer);
+    try {
+      writeFileSync(DB_PATH, buffer);
+      console.log(`Database saved to ${DB_PATH} (${buffer.length} bytes)`);
+    } catch (error) {
+      console.error('Failed to save database:', error.message);
+    }
   }
 }
 
