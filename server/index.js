@@ -117,6 +117,74 @@ app.get('/api/config', authMiddleware, (req, res) => {
   });
 });
 
+// SIP Config API
+app.get('/api/sip-config', authMiddleware, (req, res) => {
+  const db = getDb();
+  const stmt = db.prepare(
+    'SELECT registrar, port, protocol, websocket_url, username, password, display_name, certificate_path FROM sip_config WHERE user_id = ?'
+  );
+  stmt.bind([req.userId]);
+  let result = null;
+  if (stmt.step()) {
+    result = stmt.getAsObject();
+  }
+  stmt.free();
+  if (!result) {
+    return res.json({
+      registrar: '',
+      port: 5060,
+      protocol: 'TCP',
+      websocketUrl: '',
+      username: '',
+      password: '',
+      displayName: '',
+      certificatePath: '',
+    });
+  }
+  res.json({
+    registrar: result.registrar || '',
+    port: result.port || 5060,
+    protocol: result.protocol || 'TCP',
+    websocketUrl: result.websocket_url || '',
+    username: result.username || '',
+    password: result.password || '',
+    displayName: result.display_name || '',
+    certificatePath: result.certificate_path || '',
+  });
+});
+
+app.post('/api/sip-config', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { registrar, port, protocol, websocketUrl, username, password, displayName, certificatePath } = req.body;
+  const userId = req.userId;
+
+  // Prüfe ob Eintrag existiert
+  const checkStmt = db.prepare('SELECT user_id FROM sip_config WHERE user_id = ?');
+  checkStmt.bind([userId]);
+  const configExists = checkStmt.step();
+  checkStmt.free();
+
+  try {
+    if (configExists) {
+      // UPDATE
+      db.run(
+        'UPDATE sip_config SET registrar=?, port=?, protocol=?, websocket_url=?, username=?, password=?, display_name=?, certificate_path=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?',
+        [registrar || '', port || 5060, protocol || 'TCP', websocketUrl || '', username || '', password || '', displayName || '', certificatePath || '', userId]
+      );
+    } else {
+      // INSERT
+      db.run(
+        'INSERT INTO sip_config (user_id, registrar, port, protocol, websocket_url, username, password, display_name, certificate_path) VALUES (?,?,?,?,?,?,?,?,?)',
+        [userId, registrar || '', port || 5060, protocol || 'TCP', websocketUrl || '', username || '', password || '', displayName || '', certificatePath || '']
+      );
+    }
+    save();
+    res.json({ ok: true, message: 'SIP-Einstellungen gespeichert' });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Speichern der SIP-Einstellungen', details: error.message });
+  }
+});
+
 // Admin API
 app.get('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
   const db = getDb();

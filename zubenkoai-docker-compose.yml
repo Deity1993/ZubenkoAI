@@ -1,0 +1,25 @@
+services:
+  zubenkoai:
+    image: zubenkoai-fresh
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+    volumes:
+      - n8n-compose_zubenkoai-data:/app/server/data
+    networks:
+      - n8n-compose_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.zubenkoai.rule=Host(`zubenkoai.zubenko.de`)
+      - traefik.http.routers.zubenkoai.entrypoints=web,websecure
+      - traefik.http.routers.zubenkoai.tls=true
+      - traefik.http.routers.zubenkoai.tls.certresolver=mytlschall
+      - traefik.http.services.zubenkoai.loadbalancer.server.port=3000
+
+networks:
+  n8n-compose_default:
+    external: true
+
+volumes:
+  n8n-compose_zubenkoai-data:
+    external: true

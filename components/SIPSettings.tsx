@@ -22,18 +22,33 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
-    // Lade aktuelle Konfiguration
-    const config = sipService.getConfig();
-    if (config) {
-      setRegistrar(config.registrar);
-      setPort(config.port.toString());
-      setProtocol(config.protocol);
-      setWebsocketUrl(config.websocketUrl || '');
-      setUsername(config.username);
-      setPassword(config.password);
-      setDisplayName(config.displayName || '');
-      setCertificatePath(config.certificatePath || '');
-    }
+    // Lade aktuelle Konfiguration vom Server
+    const loadSettings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/sip-config', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const config = await response.json();
+          setRegistrar(config.registrar);
+          setPort(config.port.toString());
+          setProtocol(config.protocol);
+          setWebsocketUrl(config.websocketUrl || '');
+          setUsername(config.username);
+          setPassword(config.password);
+          setDisplayName(config.displayName || '');
+          setCertificatePath(config.certificatePath || '');
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der SIP-Einstellungen:', error);
+      }
+    };
+
+    loadSettings();
     setIsRegistered(sipService.isRegistered());
   }, []);
 
@@ -83,9 +98,6 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
       return;
     }
 
-    // TLS-Zertifikat wird nur für direkte SIP/TLS-Verbindungen benötigt.
-    // Bei WebSocket/WSS übernimmt der Server das Zertifikat.
-
     setIsRegistering(true);
     setStatusMessage(null);
 
@@ -100,6 +112,40 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
       certificatePath: certificatePath || undefined
     };
 
+    // Speichere Einstellungen auf dem Server
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const saveResponse = await fetch('/api/sip-config', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            registrar: config.registrar,
+            port: config.port,
+            protocol: config.protocol,
+            websocketUrl: config.websocketUrl,
+            username: config.username,
+            password: config.password,
+            displayName: config.displayName,
+            certificatePath: config.certificatePath
+          })
+        });
+
+        if (!saveResponse.ok) {
+          throw new Error('Fehler beim Speichern der Einstellungen');
+        }
+      }
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      setStatusMessage({ type: 'error', message: 'Fehler beim Speichern der Einstellungen' });
+      setIsRegistering(false);
+      return;
+    }
+
+    // Registriere im SIP-System
     const result = await sipService.register(config);
     setIsRegistering(false);
 

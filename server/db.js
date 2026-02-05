@@ -51,6 +51,22 @@ export async function initDb() {
       db.run('ALTER TABLE user_config ADD COLUMN eleven_labs_chat_agent_id TEXT DEFAULT ""');
       saveDb();
     } catch (_) { /* Spalte existiert bereits */ }
+    // Migration: sip_config Tabelle erstellen falls nicht vorhanden
+    try {
+      db.run(`CREATE TABLE sip_config (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        registrar TEXT DEFAULT '',
+        port INTEGER DEFAULT 5060,
+        protocol TEXT DEFAULT 'TCP',
+        websocket_url TEXT DEFAULT '',
+        username TEXT DEFAULT '',
+        password TEXT DEFAULT '',
+        display_name TEXT DEFAULT '',
+        certificate_path TEXT DEFAULT '',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+      saveDb();
+    } catch (_) { /* Tabelle existiert bereits */ }
     // Ersten Benutzer (admin) zum Admin machen falls noch keiner Admin ist
     const adminCheck = db.prepare('SELECT COUNT(*) as c FROM users WHERE is_admin = 1');
     adminCheck.step();
@@ -78,6 +94,20 @@ export async function initDb() {
         eleven_labs_key TEXT DEFAULT '',
         eleven_labs_agent_id TEXT DEFAULT '',
         eleven_labs_chat_agent_id TEXT DEFAULT '',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.run(`
+      CREATE TABLE sip_config (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        registrar TEXT DEFAULT '',
+        port INTEGER DEFAULT 5060,
+        protocol TEXT DEFAULT 'TCP',
+        websocket_url TEXT DEFAULT '',
+        username TEXT DEFAULT '',
+        password TEXT DEFAULT '',
+        display_name TEXT DEFAULT '',
+        certificate_path TEXT DEFAULT '',
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
