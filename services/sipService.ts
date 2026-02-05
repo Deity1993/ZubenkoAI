@@ -378,11 +378,14 @@ class SIPService {
   }
 
   private isValidSIPRegistrar(registrar: string): boolean {
+    // IPv4 address
     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    const hostnameRegex =
-      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-    return ipv4Regex.test(registrar) || hostnameRegex.test(registrar);
+    // IPv6 address
+    const ipv6Regex = /^(\[?([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}\]?)$/;
+    // Hostname/domain (allows localhost, domain names with dots, hyphens, etc.)
+    const hostnameRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+    
+    return ipv4Regex.test(registrar) || ipv6Regex.test(registrar) || hostnameRegex.test(registrar);
   }
 
   private generateCallId(): string {

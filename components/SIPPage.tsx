@@ -225,57 +225,10 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
 
         {/* Dialer Section */}
         <div className="flex-1 flex flex-col items-center justify-center space-y-1">
-          {/* Call Display - Restored larger number display */}
-          <div className="bg-slate-800/50 border border-slate-700/60 rounded p-0.5">
-            <div className="text-center">
-              <p className="text-slate-500 text-[8px] mb-0">
-                {isCallActive ? "Anruf aktiv" : "Nr."}
-              </p>
-              <div className="text-base font-mono font-bold text-slate-100 tracking-wider mb-0 min-h-5 line-clamp-1">
-                {isCallActive && currentCall
-                  ? currentCall.remoteNumber
-                  : dialNumber || "–"}
-              </div>
-              {isCallActive && (
-                <div className="text-xs font-mono text-emerald-400">
-                  {formatDuration(callDuration)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Manual Input Field */}
-          <input
-            type="text"
-            value={dialNumber}
-            onChange={(e) =>
-              setDialNumber(e.target.value.replace(/[^\d\-()#+* ]/g, ""))
-            }
-            placeholder="..."
-            disabled={isCallActive}
-            className="w-3/4 mx-auto bg-slate-800/60 border border-slate-600/60 rounded-full px-4 py-2 text-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
 
           {/* Dial Pad */}
           <div className="w-full max-w-md mx-auto">
             <div className="phone-card w-full bg-slate-900/70 rounded-2xl border border-slate-700/60 p-4 shadow-lg flex flex-col items-center">
-              {/* Display */}
-              <div className="w-full mb-2 text-center">
-                <p className="text-slate-400 text-sm mb-1">
-                  {isCallActive ? "Anruf aktiv" : "Nr."}
-                </p>
-                <div className="text-3xl md:text-4xl lg:text-5xl font-mono font-bold text-slate-100 tracking-wider mb-1 min-h-[2.5rem] line-clamp-1">
-                  {isCallActive && currentCall
-                    ? currentCall.remoteNumber
-                    : dialNumber || "–"}
-                </div>
-                {isCallActive && (
-                  <div className="text-sm text-emerald-400">
-                    {formatDuration(callDuration)}
-                  </div>
-                )}
-              </div>
-
               {/* Large input / number field */}
               <input
                 type="text"
