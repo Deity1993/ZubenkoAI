@@ -25,7 +25,7 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
     // Lade aktuelle Konfiguration vom Server
     const loadSettings = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('zubenkoai_token');
         if (!token) return;
 
         const response = await fetch('/api/sip-config', {
@@ -114,7 +114,7 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
 
     // Speichere Einstellungen auf dem Server
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('zubenkoai_token');
       if (token) {
         const saveResponse = await fetch('/api/sip-config', {
           method: 'POST',
