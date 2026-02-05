@@ -1,56 +1,143 @@
-import { SIPConfig, SIPContact, SIPCall } from '../types';
+import { SIPConfig, SIPContact, SIPCall } from "../types";
+import JsSIP from "jssip";
 
 class SIPService {
-  private sipInstance: any = null;
+  private ua: any = null;
   private sipConfig: SIPConfig | null = null;
   private currentCall: SIPCall | null = null;
   private contacts: SIPContact[] = [];
-  private isConnected = false;
+  private registrationState = false;
+  private listeners: Record<string, Function[]> = {};
 
   /**
-   * Initialisiert den SIP-Stack (JsSIP in einer echten Implementierung)
+   * Initialisiert und verbindet den SIP-Stack mit JsSIP
    */
   async initializeSIP(): Promise<void> {
-    // In einer echten Implementierung würde JsSIP hier initialisiert
-    // Für den Prototyp simulieren wir dies
-    console.log('SIP Stack initialisiert');
+    console.log("SIP Service bereit");
   }
 
   /**
-   * Registriert den Benutzer beim SIP-Registrar
+   * Registriert den Benutzer beim SIP-Registrar mit echtem WebSocket/WSS
    */
-  async register(config: SIPConfig): Promise<{ success: boolean; message: string }> {
+  async register(
+    config: SIPConfig,
+  ): Promise<{ success: boolean; message: string }> {
     try {
-      if (!config.registrar || !config.port || !config.username || !config.password) {
-        throw new Error('Unvollständige SIP-Konfiguration');
+      if (
+        !config.registrar ||
+        !config.port ||
+        !config.username ||
+        !config.password
+      ) {
+        throw new Error("Unvollständige SIP-Konfiguration");
       }
 
-      // Validiere die Konfiguration
       if (!this.isValidSIPRegistrar(config.registrar)) {
-        throw new Error('Ungültige Registrar-Adresse');
-      }
-
-      if (config.protocol === 'TLS' && !config.certificatePath) {
-        throw new Error('Zertifikat erforderlich für TLS-Verbindung');
+        throw new Error("Ungültige Registrar-Adresse");
       }
 
       this.sipConfig = config;
 
-      // In einer echten Implementierung würde hier die Registrierung stattfinden
-      // Für den Prototyp simulieren wir einen erfolgreichen Registrierungsprozess
-      await this.simulateRegistration();
+      // Initialisiere JsSIP mit WebSocket
+      const protocol = config.protocol === "TLS" ? "wss" : "ws";
+      const wsUri = `${protocol}://${config.registrar}:${config.port}`;
+      const sipUri = `sip:${config.username}@${config.registrar}`;
 
-      this.isConnected = true;
-      
+      const socket = new JsSIP.WebSocketInterface(wsUri);
+      const uaConfig = {
+        sockets: [socket],
+        uri: sipUri,
+        password: config.password,
+        display_name: config.displayName || config.username,
+        register: false,
+        session_timers: false,
+        trace_sip: true,
+      };
+
+      this.ua = new JsSIP.UA(uaConfig);
+
+      // Event-Listener registrieren
+      this.ua.on("registered", () => {
+        this.registrationState = true;
+        this.emit("registered");
+      });
+
+      this.ua.on("unregistered", () => {
+        this.registrationState = false;
+        this.emit("unregistered");
+      });
+
+      this.ua.on("registrationFailed", (e: any) => {
+        this.registrationState = false;
+        const cause = e?.cause || "Unbekannter Fehler";
+        console.error("SIP Registrierung fehlgeschlagen:", cause);
+        this.emit("registrationFailed", { cause });
+      });
+
+      this.ua.on("newRTCSession", (e: any) => {
+        this.emit("newRTCSession", e);
+      });
+
+      // Starte UA
+      this.ua.start();
+
+      // Warte auf Verbindung mit Timeout
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Verbindungs-Timeout"));
+        }, 5000);
+
+        const onConnect = () => {
+          clearTimeout(timeout);
+          this.ua.off("connected", onConnect);
+          resolve();
+        };
+
+        this.ua.on("connected", onConnect);
+      });
+
+      // Starte Registrierung
+      this.ua.register();
+
+      // Warte auf erfolgreiche Registrierung oder Fehler
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Registrierungs-Timeout"));
+        }, 10000);
+
+        const onReg = () => {
+          clearTimeout(timeout);
+          this.off("registered", onReg);
+          this.off("registrationFailed", onFail);
+          resolve();
+        };
+
+        const onFail = (data: any) => {
+          clearTimeout(timeout);
+          this.off("registered", onReg);
+          this.off("registrationFailed", onFail);
+          reject(
+            new Error(
+              `Registrierung fehlgeschlagen: ${data?.cause || "unbekannt"}`,
+            ),
+          );
+        };
+
+        this.on("registered", onReg);
+        this.on("registrationFailed", onFail);
+      });
+
       return {
         success: true,
-        message: `Erfolgreich registriert bei ${config.registrar}:${config.port} (${config.protocol})`
+        message: `Erfolgreich registriert bei ${config.registrar}:${config.port} (${config.protocol})`,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Registrierung fehlgeschlagen';
+      const message =
+        error instanceof Error ? error.message : "Registrierung fehlgeschlagen";
+      console.error("SIP Register Error:", message);
       return {
         success: false,
-        message
+        message,
       };
     }
   }
@@ -59,55 +146,72 @@ class SIPService {
    * Trennt die SIP-Verbindung
    */
   async unregister(): Promise<void> {
-    if (this.currentCall) {
-      await this.endCall();
+    try {
+      if (this.currentCall) {
+        await this.endCall();
+      }
+      if (this.ua) {
+        this.ua.unregister();
+        this.ua.stop();
+        this.ua = null;
+      }
+      this.registrationState = false;
+      this.sipConfig = null;
+    } catch (error) {
+      console.error("Fehler beim Unregister:", error);
     }
-    this.isConnected = false;
-    this.sipConfig = null;
   }
 
   /**
    * Startet einen ausgehenden Anruf
    */
-  async makeCall(phoneNumber: string): Promise<{ success: boolean; callId?: string; message: string }> {
+  async makeCall(
+    phoneNumber: string,
+  ): Promise<{ success: boolean; callId?: string; message: string }> {
     try {
-      if (!this.isConnected || !this.sipConfig) {
-        throw new Error('SIP nicht registriert');
+      if (!this.registrationState || !this.sipConfig) {
+        throw new Error("SIP nicht registriert");
       }
 
       if (!this.isValidPhoneNumber(phoneNumber)) {
-        throw new Error('Ungültige Telefonnummer');
+        throw new Error("Ungültige Telefonnummer");
       }
 
       const callId = this.generateCallId();
       const call: SIPCall = {
         callId,
         remoteNumber: phoneNumber,
-        direction: 'outgoing',
-        status: 'connecting',
+        direction: "outgoing",
+        status: "connecting",
         duration: 0,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       this.currentCall = call;
 
       // Simuliere einen erfolgreichen Anruf
       setTimeout(() => {
-        if (this.currentCall?.callId === callId && this.currentCall.status === 'connecting') {
-          this.currentCall.status = 'connected';
+        if (
+          this.currentCall?.callId === callId &&
+          this.currentCall.status === "connecting"
+        ) {
+          this.currentCall.status = "connected";
         }
       }, 2000);
 
       return {
         success: true,
         callId,
-        message: `Anruf zu ${phoneNumber} wird aufgebaut…`
+        message: `Anruf zu ${phoneNumber} wird aufgebaut…`,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Anruf konnte nicht aufgebaut werden';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Anruf konnte nicht aufgebaut werden";
       return {
         success: false,
-        message
+        message,
       };
     }
   }
@@ -117,7 +221,7 @@ class SIPService {
    */
   async endCall(): Promise<void> {
     if (this.currentCall) {
-      this.currentCall.status = 'ended';
+      this.currentCall.status = "ended";
       this.currentCall = null;
     }
   }
@@ -130,7 +234,7 @@ class SIPService {
       id: this.generateContactId(),
       name,
       number: phoneNumber,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     this.contacts.push(contact);
     this.persistContacts();
@@ -141,32 +245,35 @@ class SIPService {
    * Löscht einen Kontakt
    */
   deleteContact(contactId: string): void {
-    this.contacts = this.contacts.filter(c => c.id !== contactId);
+    this.contacts = this.contacts.filter((c) => c.id !== contactId);
     this.persistContacts();
   }
 
   /**
    * Importiert Kontakte aus einer Datei (CSV/JSON)
    */
-  async importContacts(file: File): Promise<{ success: boolean; count: number; message: string }> {
+  async importContacts(
+    file: File,
+  ): Promise<{ success: boolean; count: number; message: string }> {
     try {
       const content = await file.text();
       const imported = this.parseContactFile(content, file.name);
-      
+
       this.contacts = [...this.contacts, ...imported];
       this.persistContacts();
 
       return {
         success: true,
         count: imported.length,
-        message: `${imported.length} Kontakt(e) erfolgreich importiert`
+        message: `${imported.length} Kontakt(e) erfolgreich importiert`,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Import fehlgeschlagen';
+      const message =
+        error instanceof Error ? error.message : "Import fehlgeschlagen";
       return {
         success: false,
         count: 0,
-        message
+        message,
       };
     }
   }
@@ -175,8 +282,8 @@ class SIPService {
    * Exportiert Kontakte als CSV
    */
   exportContactsAsCSV(): string {
-    let csv = 'Name,Nummer\n';
-    this.contacts.forEach(contact => {
+    let csv = "Name,Nummer\n";
+    this.contacts.forEach((contact) => {
       csv += `"${contact.name}","${contact.number}"\n`;
     });
     return csv;
@@ -197,10 +304,10 @@ class SIPService {
   }
 
   /**
-   * Überprüft, ob SIP verbunden ist
+   * Gibt den Registrationsstatus zurück
    */
   isRegistered(): boolean {
-    return this.isConnected;
+    return this.registrationState;
   }
 
   /**
@@ -213,19 +320,30 @@ class SIPService {
   /**
    * Lädt oder speichert ein Zertifikat
    */
-  async handleCertificate(file: File | null): Promise<{ success: boolean; message: string }> {
+  async handleCertificate(
+    file: File | null,
+  ): Promise<{ success: boolean; message: string }> {
     try {
       if (!file) {
-        throw new Error('Keine Datei ausgewählt');
+        throw new Error("Keine Datei ausgewählt");
       }
 
-      if (!file.name.endsWith('.pem') && !file.name.endsWith('.crt') && !file.name.endsWith('.cer')) {
-        throw new Error('Ungültiges Zertifikatformat. Erwartet: .pem, .crt oder .cer');
+      if (
+        !file.name.endsWith(".pem") &&
+        !file.name.endsWith(".crt") &&
+        !file.name.endsWith(".cer")
+      ) {
+        throw new Error(
+          "Ungültiges Zertifikatformat. Erwartet: .pem, .crt oder .cer",
+        );
       }
 
       const content = await file.text();
-      if (!content.includes('BEGIN CERTIFICATE') && !content.includes('BEGIN RSA PRIVATE KEY')) {
-        throw new Error('Ungültiges Zertifikatformat');
+      if (
+        !content.includes("BEGIN CERTIFICATE") &&
+        !content.includes("BEGIN RSA PRIVATE KEY")
+      ) {
+        throw new Error("Ungültiges Zertifikatformat");
       }
 
       if (this.sipConfig) {
@@ -234,13 +352,16 @@ class SIPService {
 
       return {
         success: true,
-        message: `Zertifikat ${file.name} erfolgreich installiert`
+        message: `Zertifikat ${file.name} erfolgreich installiert`,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Zertifikat-Verarbeitung fehlgeschlagen';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Zertifikat-Verarbeitung fehlgeschlagen";
       return {
         success: false,
-        message
+        message,
       };
     }
   }
@@ -248,15 +369,14 @@ class SIPService {
   // ============ Private Hilfsmethoden ============
 
   private isValidPhoneNumber(number: string): boolean {
-    // Einfache Validierung - akzeptiert Zahlen und +, -, (), Leerzeichen
     return /^[\d\s\-()#+*]+$/.test(number) && number.length >= 3;
   }
 
   private isValidSIPRegistrar(registrar: string): boolean {
-    // Validiere IP-Adresse oder Hostname
     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    
+    const hostnameRegex =
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
     return ipv4Regex.test(registrar) || hostnameRegex.test(registrar);
   }
 
@@ -268,61 +388,79 @@ class SIPService {
     return `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private async simulateRegistration(): Promise<void> {
-    // Simuliere Verzögerung bei der Registrierung
-    return new Promise(resolve => setTimeout(resolve, 1500));
+  private on(event: string, cb: Function) {
+    (this.listeners[event] ||= []).push(cb);
+  }
+
+  private off(event: string, cb: Function) {
+    if (!this.listeners[event]) return;
+    this.listeners[event] = this.listeners[event].filter((fn) => fn !== cb);
+  }
+
+  private emit(event: string, data?: any) {
+    (this.listeners[event] || []).forEach((fn) => {
+      try {
+        fn(data);
+      } catch (e) {
+        console.error(`Error in event listener for '${event}':`, e);
+      }
+    });
   }
 
   private persistContacts(): void {
     try {
-      localStorage.setItem('sip_contacts', JSON.stringify(this.contacts));
+      localStorage.setItem("sip_contacts", JSON.stringify(this.contacts));
     } catch (error) {
-      console.error('Fehler beim Speichern der Kontakte:', error);
+      console.error("Fehler beim Speichern der Kontakte:", error);
     }
   }
 
   private loadContacts(): void {
     try {
-      const saved = localStorage.getItem('sip_contacts');
+      const saved = localStorage.getItem("sip_contacts");
       if (saved) {
         this.contacts = JSON.parse(saved);
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Kontakte:', error);
+      console.error("Fehler beim Laden der Kontakte:", error);
       this.contacts = [];
     }
   }
 
   private parseContactFile(content: string, filename: string): SIPContact[] {
     try {
-      if (filename.endsWith('.json')) {
+      if (filename.endsWith(".json")) {
         const data = JSON.parse(content);
-        return Array.isArray(data) ? data.map(item => ({
-          id: this.generateContactId(),
-          name: item.name || item.displayName || 'Unbekannt',
-          number: item.number || item.phone || '',
-          timestamp: Date.now()
-        })) : [];
+        return Array.isArray(data)
+          ? data.map((item) => ({
+              id: this.generateContactId(),
+              name: item.name || item.displayName || "Unbekannt",
+              number: item.number || item.phone || "",
+              timestamp: Date.now(),
+            }))
+          : [];
       } else {
         // CSV-Format
-        const lines = content.split('\n').filter(line => line.trim());
+        const lines = content.split("\n").filter((line) => line.trim());
         const contacts: SIPContact[] = [];
-        
+
         for (let i = 1; i < lines.length; i++) {
-          const [name, number] = lines[i].split(',').map(s => s.replace(/"/g, '').trim());
+          const [name, number] = lines[i]
+            .split(",")
+            .map((s) => s.replace(/"/g, "").trim());
           if (name && number && this.isValidPhoneNumber(number)) {
             contacts.push({
               id: this.generateContactId(),
               name,
               number,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             });
           }
         }
         return contacts;
       }
     } catch (error) {
-      throw new Error('Konnte Kontakt-Datei nicht parsen');
+      throw new Error("Konnte Kontakt-Datei nicht parsen");
     }
   }
 

@@ -20,6 +20,8 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
   const [newContactNumber, setNewContactNumber] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
     // Lade Kontakte beim Start
@@ -42,6 +44,36 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
 
     return () => clearInterval(callCheckInterval);
   }, [isCallActive]);
+
+  const handleRegisterSIP = async () => {
+    const config = sipService.getConfig();
+    if (!config) {
+      setRegError("SIP-Konfiguration nicht gefunden. Öffne die Einstellungen.");
+      return;
+    }
+
+    setIsRegistering(true);
+    setRegError(null);
+    const result = await sipService.register(config);
+
+    if (result.success) {
+      setIsRegistered(true);
+      setStatusMessage(result.message);
+      setRegError(null);
+    } else {
+      setIsRegistered(false);
+      setRegError(result.message);
+      setStatusMessage(`Registrierung fehlgeschlagen: ${result.message}`);
+    }
+    setIsRegistering(false);
+  };
+
+  const handleUnregisterSIP = async () => {
+    await sipService.unregister();
+    setIsRegistered(false);
+    setRegError(null);
+    setStatusMessage("Von SIP-Registrar abgemeldet");
+  };
 
   const handleDialNumber = (digit: string) => {
     setDialNumber((prev) => prev + digit);
@@ -151,16 +183,46 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
               : "SIP-Nebenstelle nicht registriert"}
           </span>
         </div>
-        <button
-          onClick={onOpenSettings}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-200 text-sm transition-colors"
-        >
-          SIP-Einstellungen
-        </button>
+        <div className="flex items-center gap-2">
+          {!isRegistered ? (
+            <button
+              onClick={handleRegisterSIP}
+              disabled={isRegistering}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-md text-white text-sm transition-colors disabled:opacity-50"
+            >
+              {isRegistering ? "Wird registriert..." : "Registrieren"}
+            </button>
+          ) : (
+            <button
+              onClick={handleUnregisterSIP}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white text-sm transition-colors"
+            >
+              Abmelden
+            </button>
+          )}
+          <button
+            onClick={onOpenSettings}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-200 text-sm transition-colors"
+          >
+            SIP-Einstellungen
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden gap-2 p-2">
+        {/* Status Messages */}
+        {regError && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-600/90 text-white px-4 py-2 rounded-md text-sm">
+            {regError}
+          </div>
+        )}
+        {statusMessage && !regError && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 bg-emerald-600/90 text-white px-4 py-2 rounded-md text-sm">
+            {statusMessage}
+          </div>
+        )}
+
         {/* Dialer Section */}
         <div className="flex-1 flex flex-col items-center justify-center space-y-1">
           {/* Call Display - Restored larger number display */}
