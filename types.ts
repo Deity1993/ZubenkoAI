@@ -13,6 +13,7 @@ export interface SIPConfig {
   username: string;
   password: string;
   displayName?: string;
+  websocketUrl?: string;
   certificatePath?: string;
   isRegistered?: boolean;
 }

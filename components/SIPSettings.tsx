@@ -11,6 +11,7 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
   const [registrar, setRegistrar] = useState('');
   const [port, setPort] = useState('5060');
   const [protocol, setProtocol] = useState<'TCP' | 'TLS'>('TCP');
+  const [websocketUrl, setWebsocketUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -27,6 +28,7 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
       setRegistrar(config.registrar);
       setPort(config.port.toString());
       setProtocol(config.protocol);
+      setWebsocketUrl(config.websocketUrl || '');
       setUsername(config.username);
       setPassword(config.password);
       setDisplayName(config.displayName || '');
@@ -93,6 +95,7 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
       registrar: registrar.trim(),
       port: parseInt(port, 10),
       protocol,
+      websocketUrl: websocketUrl.trim() || undefined,
       username: username.trim(),
       password,
       displayName: displayName.trim() || username.trim(),
@@ -216,6 +219,20 @@ const SIPSettings: React.FC<SIPSettingsProps> = ({ onClose }) => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">WebSocket-URL</label>
+              <input
+                type="text"
+                value={websocketUrl}
+                onChange={(e) => setWebsocketUrl(e.target.value)}
+                placeholder="z.B. wss://sip.provider.com:8089/ws"
+                className="w-full bg-slate-800/60 border border-slate-600/60 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/50"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Viele Provider nutzen einen separaten WebSocket-Endpunkt, der sich vom Registrar unterscheidet.
+              </p>
             </div>
           </div>
 

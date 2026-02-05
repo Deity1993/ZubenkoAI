@@ -38,9 +38,14 @@ class SIPService {
 
       this.sipConfig = config;
 
-      // Initialisiere JsSIP mit WebSocket
+      // Initialisiere JsSIP mit WebSocket (Provider-WS-URL bevorzugt)
       const protocol = config.protocol === "TLS" ? "wss" : "ws";
-      const wsUri = `${protocol}://${config.registrar}:${config.port}`;
+      const wsUri = config.websocketUrl?.trim()
+        ? config.websocketUrl.trim()
+        : `${protocol}://${config.registrar}:${config.port}`;
+      if (!wsUri.startsWith("ws://") && !wsUri.startsWith("wss://")) {
+        throw new Error("WebSocket-URL muss mit ws:// oder wss:// beginnen");
+      }
       const sipUri = `sip:${config.username}@${config.registrar}`;
 
       const socket = new JsSIP.WebSocketInterface(wsUri);
