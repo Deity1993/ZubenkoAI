@@ -200,93 +200,79 @@ const SIPPage: React.FC<SIPPageProps> = ({ onOpenSettings, onLogout }) => {
               ))}
             </div>
 
-            <div className="flex gap-0.5 mt-0.5">
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={handleBackspace}
-                disabled={!dialNumber || isCallActive}
-                className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                ←
-              </button>
-              <button
-                onClick={() => {
-                  setDialNumber('');
-                }}
-                disabled={!dialNumber || isCallActive}
-                className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                C
-              </button>
-            </div>
+            <div className="flex flex-1 overflow-hidden gap-2 p-2">
+              {/* Dialer Section - phone-like responsive card */}
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="phone-card w-full max-w-md sm:max-w-sm md:max-w-md lg:max-w-lg mx-auto bg-slate-900/70 rounded-2xl border border-slate-700/60 p-4 shadow-lg flex flex-col items-center">
+                  {/* Display */}
+                  <div className="w-full mb-2">
+                    <div className="text-center">
+                      <p className="text-slate-400 text-sm sm:text-sm md:text-sm mb-1">{isCallActive ? 'Anruf aktiv' : 'Nr.'}</p>
+                      <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-mono font-bold text-slate-100 tracking-wider mb-1 min-h-[2.5rem] line-clamp-1">
+                        {isCallActive && currentCall ? currentCall.remoteNumber : dialNumber || '–'}
+                      </div>
+                      {isCallActive && <div className="text-sm sm:text-sm text-emerald-400">{formatDuration(callDuration)}</div>}
+                    </div>
+                  </div>
 
-            <div className="flex gap-0.5 mt-0.5">
-              {isCallActive ? (
-                <button
-                  onClick={handleEndCall}
-                  className="flex-1 h-3 bg-red-600 hover:bg-red-700 rounded text-white font-semibold flex items-center justify-center gap-0.5 transition-colors text-[6px]"
-                >
-                  <PhoneOff size={6} />
-                </button>
-              ) : (
-                <button
-                  onClick={handleCall}
-                  disabled={!dialNumber.trim() || !isRegistered}
-                  className="flex-1 h-3 bg-emerald-600 hover:bg-emerald-700 rounded text-white font-semibold flex items-center justify-center gap-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[6px]"
-                >
-                  <Phone size={6} />
-                </button>
-              )}
-            </div>
-          </div>
+                  {/* Large input / number field (centered, scales on mobile) */}
+                  <input
+                    type="text"
+                    value={dialNumber}
+                    onChange={(e) => setDialNumber(e.target.value.replace(/[^\\d\\-()#+* ]/g, ''))}
+                    placeholder="Nummer eingeben"
+                    disabled={isCallActive}
+                    className="w-full text-center bg-slate-800/60 border border-slate-600/60 rounded-full px-4 py-3 sm:px-4 sm:py-3 text-2xl sm:text-3xl md:text-4xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
 
-          {/* Status Message */}
-          {statusMessage && (
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-4 text-sm text-slate-300">
-              {statusMessage}
-            </div>
-          )}
-        </div>
+                  {/* Keypad - centered, responsive sizes */}
+                  <div className="w-full mt-4">
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4 justify-items-center">
+                      {['1','2','3','4','5','6','7','8','9','*','0','#'].map(digit => (
+                        <button
+                          key={digit}
+                          onClick={() => !isCallActive && handleDialNumber(digit)}
+                          disabled={isCallActive}
+                          className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-slate-700 hover:bg-slate-600 rounded-full text-lg sm:text-xl md:text-2xl font-semibold text-slate-100 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {digit}
+                        </button>
+                      ))}
+                    </div>
 
-        {/* Contacts Section */}
-        <div className="w-80 flex flex-col bg-slate-800/50 border border-slate-700/60 rounded-lg overflow-hidden">
-          {/* Contacts Header */}
-          <div className="border-b border-slate-700/60 p-4 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-100">Kontakte ({contacts.length})</h3>
-            <button
-              onClick={() => setShowAddContact(!showAddContact)}
-              className="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-200 transition-colors"
-              title="Kontakt hinzufügen"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
+                    <div className="flex gap-3 mt-4">
+                      <button
+                        onClick={handleBackspace}
+                        disabled={!dialNumber || isCallActive}
+                        className="flex-1 h-12 sm:h-12 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-base sm:text-base flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ←
+                      </button>
+                      <button
+                        onClick={() => setDialNumber('')}
+                        disabled={!dialNumber || isCallActive}
+                        className="flex-1 h-12 sm:h-12 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 text-base sm:text-base flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        C
+                      </button>
+                    </div>
 
-          {/* Add Contact Form */}
-          {showAddContact && (
-            <div className="border-b border-slate-700/60 p-4 space-y-3 bg-slate-900/30">
-              <input
-                type="text"
-                placeholder="Name"
-                value={newContactName}
-                onChange={(e) => setNewContactName(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              />
-              <input
-                type="text"
-                placeholder="Nummer"
-                value={newContactNumber}
-                onChange={(e) => setNewContactNumber(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddContact}
-                  className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm text-white transition-colors"
-                >
-                  Speichern
-                </button>
-                <button
+                    <div className="flex gap-3 mt-3">
+                      {isCallActive ? (
+                        <button onClick={handleEndCall} className="flex-1 h-12 bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold flex items-center justify-center gap-2">
+                          <PhoneOff size={18} />
+                          Auflegen
+                        </button>
+                      ) : (
+                        <button onClick={handleCall} disabled={!dialNumber.trim() || !isRegistered} className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 rounded-full text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                          <Phone size={18} />
+                          Anrufen
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
                   onClick={() => setShowAddContact(false)}
                   className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-200 transition-colors"
                 >
