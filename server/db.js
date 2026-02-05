@@ -4,7 +4,9 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, 'data', 'app.db');
+const DB_PATH = join(__dirname, '..', 'data', 'app.db');
+
+console.log('Database path:', DB_PATH, 'Exists:', existsSync(DB_PATH));
 
 let db = null;
 
@@ -16,6 +18,7 @@ export async function initDb() {
     mkdirSync(dbDir, { recursive: true });
   }
   if (existsSync(DB_PATH)) {
+    console.log('Loading existing database from', DB_PATH);
     const buffer = readFileSync(DB_PATH);
     db = new SQL.Database(buffer);
     // Migration: Spalten is_admin und is_locked hinzufügen falls nicht vorhanden
@@ -77,6 +80,7 @@ export async function initDb() {
       saveDb();
     }
   } else {
+    console.log('Creating new database at', DB_PATH);
     db = new SQL.Database();
     db.run(`
       CREATE TABLE users (
