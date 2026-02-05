@@ -1,191 +1,300 @@
-import { ApiKeys } from '../types';
+import { ApiKeys } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || "";
 
 function getToken(): string | null {
-  return sessionStorage.getItem('zubenkoai_token');
+  return sessionStorage.getItem("zubenkoai_token");
 }
 
 function setToken(token: string) {
-  sessionStorage.setItem('zubenkoai_token', token);
+  sessionStorage.setItem("zubenkoai_token", token);
 }
 
 function setAdmin(isAdmin: boolean) {
-  sessionStorage.setItem('zubenkoai_admin', isAdmin ? '1' : '0');
+  sessionStorage.setItem("zubenkoai_admin", isAdmin ? "1" : "0");
 }
 
 function setUsername(username: string) {
-  sessionStorage.setItem('zubenkoai_username', username || '');
+  sessionStorage.setItem("zubenkoai_username", username || "");
 }
 
 export function getUsername(): string {
-  return sessionStorage.getItem('zubenkoai_username') || '';
+  return sessionStorage.getItem("zubenkoai_username") || "";
 }
 
 export function isAdminUser(): boolean {
-  return sessionStorage.getItem('zubenkoai_admin') === '1';
+  return sessionStorage.getItem("zubenkoai_admin") === "1";
 }
 
 export const apiService = {
   clearToken() {
-    sessionStorage.removeItem('zubenkoai_token');
-    sessionStorage.removeItem('zubenkoai_admin');
-    sessionStorage.removeItem('zubenkoai_username');
+    sessionStorage.removeItem("zubenkoai_token");
+    sessionStorage.removeItem("zubenkoai_admin");
+    sessionStorage.removeItem("zubenkoai_username");
   },
-  async login(username: string, password: string): Promise<{ isAdmin: boolean }> {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  const text = await res.text();
-  let data: { token?: string; isAdmin?: boolean; username?: string; error?: string } = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error('Server-Antwort ungültig. Bitte Seite neu laden.');
+  async login(
+    username: string,
+    password: string,
+  ): Promise<{ isAdmin: boolean; username: string }> {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const text = await res.text();
+    let data: {
+      token?: string;
+      isAdmin?: boolean;
+      username?: string;
+      error?: string;
+    } = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Server-Antwort ungültig. Bitte Seite neu laden.");
+      }
     }
-  }
-  if (!res.ok) {
-    throw new Error(data.error || 'Anmeldung fehlgeschlagen');
-  }
-  if (!data.token) {
-    throw new Error('Anmeldung fehlgeschlagen. Kein Token erhalten.');
-  }
-  setToken(data.token);
-  setAdmin(!!data.isAdmin);
-  setUsername(data.username || '');
-  return { isAdmin: !!data.isAdmin, username: data.username || '' };
+    if (!res.ok) {
+      throw new Error(data.error || "Anmeldung fehlgeschlagen");
+    }
+    if (!data.token) {
+      throw new Error("Anmeldung fehlgeschlagen. Kein Token erhalten.");
+    }
+    setToken(data.token);
+    setAdmin(!!data.isAdmin);
+    setUsername(data.username || "");
+    return { isAdmin: !!data.isAdmin, username: data.username || "" };
   },
   async getConfig(): Promise<ApiKeys> {
-  const token = getToken();
-  if (!token) throw new Error('Nicht angemeldet');
-  const res = await fetch(`${API_BASE}/api/config`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const text = await res.text();
-  if (res.status === 401) {
-    this.clearToken();
-    throw new Error('Sitzung abgelaufen');
-  }
-  if (!res.ok) throw new Error('Konfiguration konnte nicht geladen werden');
-  if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' };
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error('Konfiguration konnte nicht geladen werden.');
-  }
+    const token = getToken();
+    if (!token) throw new Error("Nicht angemeldet");
+    const res = await fetch(`${API_BASE}/api/config`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const text = await res.text();
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (!res.ok) throw new Error("Konfiguration konnte nicht geladen werden");
+    if (!text)
+      return {
+        elevenLabsKey: "",
+        elevenLabsAgentId: "",
+        elevenLabsChatAgentId: "",
+      };
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("Konfiguration konnte nicht geladen werden.");
+    }
   },
   async getMe(): Promise<{ isAdmin: boolean; username: string }> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const text = await res.text();
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (!res.ok) throw new Error('Fehler');
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (!res.ok) throw new Error("Fehler");
     let data: { isAdmin?: boolean; username?: string } = {};
-    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
+    }
     setAdmin(!!data.isAdmin);
-    setUsername(data.username || '');
-    return { isAdmin: !!data.isAdmin, username: data.username || '' };
+    setUsername(data.username || "");
+    return { isAdmin: !!data.isAdmin, username: data.username || "" };
   },
   async getAdminUsers(): Promise<AdminUser[]> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const text = await res.text();
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error('Benutzer konnten nicht geladen werden');
-    try { return text ? JSON.parse(text) : []; } catch { return []; }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error("Benutzer konnten nicht geladen werden");
+    try {
+      return text ? JSON.parse(text) : [];
+    } catch {
+      return [];
+    }
   },
-  async createUser(username: string, password: string): Promise<{ id: number; username: string }> {
+  async createUser(
+    username: string,
+    password: string,
+  ): Promise<{ id: number; username: string }> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ username, password }),
     });
     const text = await res.text();
     let data: { error?: string; id?: number; username?: string } = {};
-    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error(data.error || 'Benutzer konnte nicht erstellt werden');
-    return data;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok)
+      throw new Error(data.error || "Benutzer konnte nicht erstellt werden");
+    return { id: data.id || 0, username: data.username || "" };
   },
-  async updateUser(id: number, data: { password?: string; isLocked?: boolean; isAdmin?: boolean }): Promise<void> {
+  async updateUser(
+    id: number,
+    data: { password?: string; isLocked?: boolean; isAdmin?: boolean },
+  ): Promise<void> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(data),
     });
     const text = await res.text();
     let json: { error?: string } = {};
-    if (text) { try { json = JSON.parse(text); } catch { /* ignore */ } }
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error(json.error || 'Änderung fehlgeschlagen');
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error(json.error || "Änderung fehlgeschlagen");
   },
   async getUserConfig(userId: number): Promise<ApiKeys> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}/config`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const text = await res.text();
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error('Konfiguration konnte nicht geladen werden');
-    if (!text) return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' };
-    try { return JSON.parse(text); } catch { return { elevenLabsKey: '', elevenLabsAgentId: '', elevenLabsChatAgentId: '' }; }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error("Konfiguration konnte nicht geladen werden");
+    if (!text)
+      return {
+        elevenLabsKey: "",
+        elevenLabsAgentId: "",
+        elevenLabsChatAgentId: "",
+      };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        elevenLabsKey: "",
+        elevenLabsAgentId: "",
+        elevenLabsChatAgentId: "",
+      };
+    }
   },
   async exportUsersCsv(): Promise<Blob> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users/export`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error('Export fehlgeschlagen');
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error("Export fehlgeschlagen");
     return res.blob();
   },
-  async importUsersCsv(csv: string): Promise<{ created: string[]; updated: string[]; errors: string[] }> {
+  async importUsersCsv(
+    csv: string,
+  ): Promise<{ created: string[]; updated: string[]; errors: string[] }> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ csv }),
     });
     const text = await res.text();
-    let data: { created?: string[]; updated?: string[]; errors?: string[]; error?: string } = {};
-    if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error(data.error || 'Import fehlgeschlagen');
-    return { created: data.created || [], updated: data.updated || [], errors: data.errors || [] };
+    let data: {
+      created?: string[];
+      updated?: string[];
+      errors?: string[];
+      error?: string;
+    } = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error(data.error || "Import fehlgeschlagen");
+    return {
+      created: data.created || [],
+      updated: data.updated || [],
+      errors: data.errors || [],
+    };
   },
   async setUserConfig(userId: number, config: Partial<ApiKeys>): Promise<void> {
     const token = getToken();
-    if (!token) throw new Error('Nicht angemeldet');
+    if (!token) throw new Error("Nicht angemeldet");
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}/config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(config),
     });
-    if (res.status === 401) { this.clearToken(); throw new Error('Sitzung abgelaufen'); }
-    if (res.status === 403) throw new Error('Admin-Rechte erforderlich');
-    if (!res.ok) throw new Error('Konfiguration konnte nicht gespeichert werden');
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok)
+      throw new Error("Konfiguration konnte nicht gespeichert werden");
   },
 };
 
