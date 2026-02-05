@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Download,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import { apiService, AdminUser } from '../services/apiService';
 import { elevenLabsService } from '../services/elevenLabsService';
@@ -99,6 +100,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
 
   const handleToggleAdmin = (u: AdminUser) => {
     handleUpdateUser(u.id, { isAdmin: !u.isAdmin });
+  };
+
+  const handleDeleteUser = async (u: AdminUser) => {
+    if (!confirm(`Benutzer "${u.username}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+    setError('');
+    try {
+      await apiService.deleteUser(u.id);
+      loadUsers();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Löschen');
+    }
   };
 
   const openConfig = async (u: AdminUser) => {
@@ -372,6 +386,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ username, onBack, onLogout }) => 
                         title="Passwort ändern"
                       >
                         <Key size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="p-2 rounded-lg text-red-500 hover:text-red-400 hover:bg-red-900/20"
+                        title="Benutzer löschen"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </div>

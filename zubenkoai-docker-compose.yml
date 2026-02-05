@@ -22,4 +22,4 @@ networks:
 
 volumes:
   n8n-compose_zubenkoai-data:
-    external: true
+    name: n8n-compose_zubenkoai-data

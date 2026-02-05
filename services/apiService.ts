@@ -195,6 +195,29 @@ export const apiService = {
     if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
     if (!res.ok) throw new Error(json.error || "Änderung fehlgeschlagen");
   },
+  async deleteUser(id: number): Promise<void> {
+    const token = getToken();
+    if (!token) throw new Error("Nicht angemeldet");
+    const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const text = await res.text();
+    let json: { error?: string } = {};
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (res.status === 401) {
+      this.clearToken();
+      throw new Error("Sitzung abgelaufen");
+    }
+    if (res.status === 403) throw new Error("Admin-Rechte erforderlich");
+    if (!res.ok) throw new Error(json.error || "Löschen fehlgeschlagen");
+  },
   async getUserConfig(userId: number): Promise<ApiKeys> {
     const token = getToken();
     if (!token) throw new Error("Nicht angemeldet");

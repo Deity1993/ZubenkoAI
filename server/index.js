@@ -17,8 +17,6 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 await initDb();
-// Ensure database is saved on startup
-save();
 
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
@@ -439,6 +437,24 @@ app.patch('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) =>
   stmt.free();
   save();
   if (changed === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Ungültige ID' });
+  const db = getDb();
+  // Prüfen ob User existiert
+  const checkStmt = db.prepare('SELECT id FROM users WHERE id = ?');
+  checkStmt.bind([id]);
+  const exists = checkStmt.step();
+  checkStmt.free();
+  if (!exists) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  // User löschen (CASCADE löscht auch user_config und sip_config)
+  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+  stmt.run([id]);
+  stmt.free();
+  save();
   res.json({ ok: true });
 });
 
