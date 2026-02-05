@@ -4,9 +4,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '..', 'data', 'app.db');
-
-console.log('Database path:', DB_PATH, 'Exists:', existsSync(DB_PATH));
+const DB_PATH = join(__dirname, 'data', 'app.db');
 
 let db = null;
 
